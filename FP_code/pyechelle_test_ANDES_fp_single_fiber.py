@@ -4,23 +4,27 @@ from pyechelle.sources import Constant
 from pyechelle.telescope import Telescope
 from pyechelle.spectrograph import ZEMAX, LocalDisturber, GlobalDisturber
 import os, sys, random
+from pathlib import Path
 
 t_exp = 30  # sec
 coeff_FP = 5E9
 
 def main(arm, idx, shift=None):
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    
     if arm in {"Y", "J", "H"}:
         n_fibers = 75
         hdfname = f'ANDES_75fibre_{arm}'
-        fpname = "SED/FP_simulation_YJH_finesse_26.csv"
+        fpname = "FP_simulation_YJH_finesse_26.csv"
     elif arm in {"U", "B", "V"}:
         n_fibers = 66
         hdfname = f'ANDES_123_{arm}3'
-        fpname = "SED/FP_simulation_UBV_finesse_23.csv"
+        fpname = "FP_simulation_UBV_finesse_23.csv"
     elif arm in {"R", "IZ"}:
         n_fibers = 66
         hdfname = f'ANDES_123_{arm}3'
-        fpname = "SED/FP_simulation_RIZ_finesse_23.csv"
+        fpname = "FP_simulation_RIZ_finesse_23.csv"
     else:
         print(f'Error: Unknown arm {arm}')
         sys.exit(1)
@@ -29,12 +33,15 @@ def main(arm, idx, shift=None):
         print(f'Error: fiber_idx must be between 1 and {n_fibers}')
         sys.exit(1)
 
+    hdf_path = project_root / 'HDF' / hdfname
+    sed_path = project_root / 'SED' / fpname
+    
     if shift:
         tx = random.gauss(0.0,shift/1000) # sigma=0.1=100m/s
         print(f'velocity shift={1000*tx}m/s')
-        spec = LocalDisturber(ZEMAX('HDF/' + hdfname),d_tx=tx)
+        spec = LocalDisturber(ZEMAX(str(hdf_path)),d_tx=tx)
     else:
-        spec = ZEMAX('HDF/' + hdfname)
+        spec = ZEMAX(str(hdf_path))
     sim = Simulator(spec)
     sim.set_ccd(1)
 
@@ -45,7 +52,7 @@ def main(arm, idx, shift=None):
     # flux in photons is set to True to avoid a bug in pyechelle,
     # the FP spectra actually doesn't have physical units
     # t_exp = coeff_FP * t_exp_nominal was set to cope with this
-    fp = CSV(filepath=fpname,
+    fp = CSV(filepath=str(sed_path),
             wavelength_unit="nm", flux_in_photons=True)
     fp.flux_data *= coeff_FP
     dark = Constant(0.00)

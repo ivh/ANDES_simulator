@@ -5,11 +5,15 @@ from pyechelle.telescope import Telescope
 from pyechelle.spectrograph import ZEMAX
 import os, sys
 import astropy.units as u
+from pathlib import Path
 
 t_exp = 30  # sec
 spec_scale= 5E3
 
 def main(arm, idx, specname, shift=None):
+    script_dir = Path(__file__).parent
+    project_root = script_dir
+    
     if arm in {"Y", "J", "H"}:
         n_fibers = 75
         hdfname = f'ANDES_75fibre_{arm}'
@@ -27,7 +31,8 @@ def main(arm, idx, specname, shift=None):
         print(f'Error: fiber_idx must be between 1 and {n_fibers}')
         sys.exit(1)
 
-    spec = ZEMAX('HDF/' + hdfname)
+    hdf_path = project_root / 'HDF' / hdfname
+    spec = ZEMAX(str(hdf_path))
     sim = Simulator(spec)
     sim.set_ccd(1)
 

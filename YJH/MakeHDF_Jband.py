@@ -9,6 +9,7 @@ from pyechelle.CCD import CCD
 from pyechelle.hdfbuilder import HDFBuilder
 from pyechelle.spectrograph import InteractiveZEMAX
 import numpy as np
+from pathlib import Path
 # Open Link to a standalone OpticStudio instance
 zmx = InteractiveZEMAX(name='ANDES123', zemax_filepath="HIRES_J_21jan2022_sconf_noap.zmx")
 # set basic grating specifications
@@ -41,7 +42,10 @@ zmx.psf_settings(image_delta=3, image_sampling="128x128", pupil_sampling="64x64"
 # and it will/should pull the appropriate values from ZEMAX. This might be helpful for debugging.
 
 # To generate an .HDF model file, you do:
-hdf = HDFBuilder(zmx, 'ANDES_75fibre_J.hdf')
+script_dir = Path(__file__).parent
+project_root = script_dir.parent
+hdf_path = project_root / 'HDF' / 'ANDES_75fibre_J.hdf'
+hdf = HDFBuilder(zmx, str(hdf_path))
 # this will take a long time...
 hdf.save_to_hdf(n_transformation_per_order=15, n_psfs_per_order=15)
 

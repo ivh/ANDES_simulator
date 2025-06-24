@@ -11,6 +11,7 @@ from pyechelle.sources import Constant
 from pyechelle.telescope import Telescope
 from pyechelle.spectrograph import ZEMAX, LocalDisturber, GlobalDisturber
 import os, sys, random
+from pathlib import Path
 
 t_exp = 30  # sec
 coeff_FP = 5E9
@@ -35,7 +36,10 @@ for zemaxfile in zemaxfiles:
     if tnum in zemaxfile:
         break
 
-sim = Simulator(ZEMAX('HDF/' + zemaxfile))
+script_dir = Path(__file__).parent
+project_root = script_dir
+hdf_path = project_root / 'HDF' / zemaxfile
+sim = Simulator(ZEMAX(str(hdf_path)))
 sim.set_ccd(1)
 
 set_of_fibers = range(1, n_fibers + 1)
@@ -45,8 +49,8 @@ sim.set_telescope(Telescope(39.3, 4.09))
 # flux in photons is set to True to avoid a bug in pyechelle,
 # the FP spectra actually doesn't have physical units
 # t_exp = coeff_FP * t_exp_nominal was set to cope with this
-fpname = "SED/FP_simulation_RIZ_finesse_23.csv"
-fp = CSV(filepath=fpname,
+sed_path = project_root / 'SED' / 'FP_simulation_RIZ_finesse_23.csv'
+fp = CSV(filepath=str(sed_path),
         wavelength_unit="nm", flux_in_photons=True)
 fp.flux_data *= coeff_FP
 dark = Constant(0.00)

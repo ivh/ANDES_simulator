@@ -15,8 +15,11 @@ from astropy.io import fits
 from scipy.signal import convolve2d
 import concurrent.futures
 import functools
+from pathlib import Path
 
-BASEDIR = '/Users/tom/ANDES/E2E/'
+script_dir = Path(__file__).parent
+project_root = script_dir.parent
+BASEDIR = str(project_root.parent) + '/'
 #fnschema = '{arm}_T0108_fib{fib:02d}.fits'
 fnschema = '{arm}_FP_fiber{fib:02d}_shift*.fits'
 
@@ -160,9 +163,9 @@ if __name__ == "__main__":
     # Save the result
     HDUL = fits.PrimaryHDU(dsum)
     if kerpara_given:
-        fname = f'{BASEDIR}/{arm}/{arm}_FP_IFUsum_kern{kerpara[0]}x{kerpara[1]}s{float(kerpara[2])*2.35:.1f}{kerpara[3]}.fits'
+        fname = str(project_root.parent / arm / f'{arm}_FP_IFUsum_kern{kerpara[0]}x{kerpara[1]}s{float(kerpara[2])*2.35:.1f}{kerpara[3]}.fits')
     else:
-        fname = f'{BASEDIR}/{arm}/{arm}_FP_IFUsum.fits'
+        fname = str(project_root.parent / arm / f'{arm}_FP_IFUsum.fits')
     print(f'Saving to {fname}')
     HDUL.writeto(fname, overwrite=True)
     
