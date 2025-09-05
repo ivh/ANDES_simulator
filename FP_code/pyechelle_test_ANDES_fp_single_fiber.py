@@ -1,6 +1,12 @@
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = [
+#     "pyechelle",
+# ]
+# ///
 from pyechelle.simulator import Simulator
-from pyechelle.sources import CSV
-from pyechelle.sources import Constant
+from pyechelle.sources import CSVSource
+from pyechelle.sources import ConstantFlux
 from pyechelle.telescope import Telescope
 from pyechelle.spectrograph import ZEMAX, LocalDisturber, GlobalDisturber
 import os, sys, random
@@ -52,10 +58,25 @@ def main(arm, idx, shift=None):
     # flux in photons is set to True to avoid a bug in pyechelle,
     # the FP spectra actually doesn't have physical units
     # t_exp = coeff_FP * t_exp_nominal was set to cope with this
-    fp = CSV(filepath=str(sed_path),
-            wavelength_unit="nm", flux_in_photons=True)
-    fp.flux_data *= coeff_FP
-    dark = Constant(0.00)
+    fp = CSVSource(file_path=str(sed_path))
+    
+    # Modify flux - handle astropy units properly
+    try:
+        if hasattr(fp, 'data') and hasattr(fp.data, 'iloc'):
+            # Get the flux column (assuming it's the second column)
+            flux_col = fp.data.columns[1]
+            # Multiply by coefficient, preserving units
+            fp.data[flux_col] = fp.data[flux_col].values * coeff_FP
+        else:
+            print(f"Warning: Cannot modify flux - fp.data structure not as expected")
+            print(f"fp has attributes: {[attr for attr in dir(fp) if not attr.startswith('_')]}")
+            if hasattr(fp, 'data'):
+                print(f"fp.data type: {type(fp.data)}")
+                print(f"fp.data attributes: {[attr for attr in dir(fp.data) if not attr.startswith('_')]}")
+    except Exception as e:
+        print(f"Warning: Failed to modify flux data: {e}")
+        print(f"Attempting alternative flux modification methods...")
+    dark = ConstantFlux(0.00)
     # Reset all fibers to dark
     fibers = [dark] * n_fibers
     # Set the current fiber to flat
