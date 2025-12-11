@@ -1,0 +1,33 @@
+simulation_type: hdf_generation
+band: Y
+exposure_time: 30.0
+hdf_model: null
+use_cuda: false
+max_cpu: 1
+velocity_shift: null
+thermal_model: null
+combine_fibers: false
+
+source:
+  type: constant  # Not used for HDF generation
+  flux: 0.001
+  filepath: null
+  wavelength_unit: nm
+  flux_unit: ph/s
+  scaling_factor: 1.0
+
+fibers:
+  mode: all
+  fibers: all
+  skip_fibers: []
+
+psf:
+  enabled: false
+  kernel_size: [4, 4]
+  sigma: 1.0
+  edge_blank: random
+
+output:
+  directory: HDF/
+  filename_template: "ANDES_75fibre_{band}.hdf"
+  overwrite: true

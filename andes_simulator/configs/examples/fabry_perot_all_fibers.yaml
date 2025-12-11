@@ -1,0 +1,33 @@
+simulation_type: fabry_perot
+band: Y
+exposure_time: 30.0
+hdf_model: null
+use_cuda: false
+max_cpu: 4
+velocity_shift: null
+thermal_model: null
+combine_fibers: false
+
+source:
+  type: fabry_perot
+  flux: 0.001
+  filepath: null
+  wavelength_unit: nm
+  flux_unit: ph/s
+  scaling_factor: 100000000.0
+
+fibers:
+  mode: all
+  fibers: all
+  skip_fibers: []
+
+psf:
+  enabled: false
+  kernel_size: [4, 4]
+  sigma: 1.0
+  edge_blank: random
+
+output:
+  directory: "../{band}/"
+  filename_template: "{band}_FP_{exposure}s.fits"
+  overwrite: true

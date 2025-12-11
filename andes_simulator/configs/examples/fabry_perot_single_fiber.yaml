@@ -1,0 +1,33 @@
+simulation_type: fabry_perot
+band: J
+exposure_time: 30.0
+hdf_model: null
+use_cuda: false
+max_cpu: 1
+velocity_shift: 100.0  # m/s Doppler shift
+thermal_model: null
+combine_fibers: false
+
+source:
+  type: fabry_perot
+  flux: 0.001
+  filepath: null
+  wavelength_unit: nm
+  flux_unit: ph/s
+  scaling_factor: 5000000000.0
+
+fibers:
+  mode: single
+  fibers: [33]
+  skip_fibers: []
+
+psf:
+  enabled: false
+  kernel_size: [4, 4]
+  sigma: 1.0
+  edge_blank: random
+
+output:
+  directory: "../{band}/"
+  filename_template: "{band}_FP_fiber{fiber:02d}_shift{velocity_shift:+.1f}.fits"
+  overwrite: true

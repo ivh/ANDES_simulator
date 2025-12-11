@@ -1,0 +1,33 @@
+simulation_type: fabry_perot
+band: R
+exposure_time: 30.0
+hdf_model: ANDES_full_F18A33_win_jmr_MC_T0019_Rband_p0  # Specific thermal model
+use_cuda: false
+max_cpu: 1
+velocity_shift: null
+thermal_model: T0019
+combine_fibers: false
+
+source:
+  type: fabry_perot
+  flux: 0.001
+  filepath: null
+  wavelength_unit: nm
+  flux_unit: ph/s
+  scaling_factor: 5000000000.0
+
+fibers:
+  mode: single
+  fibers: [33]
+  skip_fibers: []
+
+psf:
+  enabled: false
+  kernel_size: [4, 4]
+  sigma: 1.0
+  edge_blank: random
+
+output:
+  directory: "../{band}/"
+  filename_template: "{band}_T0019_fib{fiber:02d}.fits"
+  overwrite: true
