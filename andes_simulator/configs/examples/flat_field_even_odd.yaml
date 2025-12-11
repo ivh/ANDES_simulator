@@ -10,10 +10,10 @@ combine_fibers: false
 
 source:
   type: constant
-  flux: 0.001
+  flux: 100.0  # 100 ph/s total, will be converted to ~1 ph/s/AA
   filepath: null
   wavelength_unit: nm
-  flux_unit: ph/s
+  flux_unit: ph/s  # Total flux - will be distributed over wavelength range
   scaling_factor: 1.0
 
 fibers:

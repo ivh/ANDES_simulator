@@ -113,7 +113,12 @@ class AndesSimulator:
         
         # Create base source based on type
         if self.config.source.type == "constant":
-            base_source = ConstantPhotonFlux(self.config.source.flux)
+            # Convert flux to ph/s/AA if needed
+            flux_value = self._convert_flux_units(
+                self.config.source.flux,
+                self.config.source.flux_unit
+            )
+            base_source = ConstantPhotonFlux(flux_value)
             
         elif self.config.source.type == "csv":
             csv_path = Path(self.config.source.filepath)
@@ -168,7 +173,53 @@ class AndesSimulator:
         
         self.sources = sources
         return sources
-    
+
+    def _convert_flux_units(self, flux: float, flux_unit: str) -> float:
+        """
+        Convert flux to ph/s/AA as required by ConstantPhotonFlux.
+
+        Parameters
+        ----------
+        flux : float
+            Flux value in the specified units
+        flux_unit : str
+            Unit of flux: "ph/s", "ph/s/AA", or "ph/s/nm"
+
+        Returns
+        -------
+        float
+            Flux in ph/s/AA
+        """
+        if flux_unit == "ph/s/AA":
+            # Already in correct units
+            return flux
+
+        elif flux_unit == "ph/s/nm":
+            # Convert nm to AA: 1 nm = 10 AA, so ph/s/nm * 10 = ph/s/AA
+            return flux / 10.0
+
+        elif flux_unit == "ph/s":
+            # Total flux needs to be distributed over wavelength range
+            # Use a typical order bandwidth for the conversion
+            # For ANDES, typical order bandwidth is ~10-20nm (~100-200 AA)
+            # We'll use 100 AA as a reasonable default
+            typical_bandwidth_aa = 100.0
+
+            logging.warning(
+                f"Converting total flux ({flux} ph/s) to flux density. "
+                f"Using assumed bandwidth of {typical_bandwidth_aa} AA. "
+                f"Result: {flux/typical_bandwidth_aa:.2e} ph/s/AA. "
+                f"For more accurate results, use 'ph/s/AA' or 'ph/s/nm' units."
+            )
+
+            return flux / typical_bandwidth_aa
+
+        else:
+            raise ValueError(
+                f"Unknown flux_unit '{flux_unit}'. "
+                f"Supported: 'ph/s', 'ph/s/AA', 'ph/s/nm'"
+            )
+
     def _setup_even_odd_sources(self, base_source, dark_source, n_fibers: int) -> Dict[str, List]:
         """
         Set up sources for even/odd fiber illumination.
