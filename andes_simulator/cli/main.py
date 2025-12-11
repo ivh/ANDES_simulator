@@ -16,12 +16,10 @@ except ImportError:
     print("Error: click package required for CLI. Install with: pip install click")
     sys.exit(1)
 
-from ..core.simulator import AndesSimulator
-from ..core.config import SimulationConfig, create_template_configs
-from ..core.instruments import get_all_bands
-from ..postprocess.psf import PSFProcessor
-from ..postprocess.combine import FiberCombiner
-from ..models.hdf_builder import AndesHDFBuilder
+# Heavy imports moved to lazy loading within commands to speed up --help
+
+# Lightweight band list for CLI validation (avoids importing instruments module)
+ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
 
 
 @click.group()
@@ -42,7 +40,7 @@ def cli(ctx, verbose, project_root):
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(get_all_bands()), 
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS), 
               help='Spectral band')
 @click.option('--mode', default='all', 
               type=click.Choice(['all', 'single', 'even_odd', 'first_slit', 'second_slit', 'calib']),
@@ -57,14 +55,14 @@ def cli(ctx, verbose, project_root):
 @click.pass_context
 def flat_field(ctx, band, mode, fiber, flux, exposure, output_dir, config, dry_run):
     """Generate flat field calibration frames."""
-    
+    from ..core.simulator import AndesSimulator
+    from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+
     if config:
         # Load from configuration file
         sim_config = SimulationConfig.from_yaml(config)
     else:
         # Create configuration from command line options
-        from ..core.config import SourceConfig, FiberConfig, OutputConfig
-        
         if mode == 'single' and fiber is None:
             raise click.BadParameter("--fiber required for single mode")
         
@@ -105,7 +103,7 @@ def flat_field(ctx, band, mode, fiber, flux, exposure, output_dir, config, dry_r
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(get_all_bands()),
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
               help='Spectral band')
 @click.option('--mode', default='all',
               type=click.Choice(['all', 'single']),
@@ -121,12 +119,12 @@ def flat_field(ctx, band, mode, fiber, flux, exposure, output_dir, config, dry_r
 @click.pass_context
 def fabry_perot(ctx, band, mode, fiber, velocity_shift, scaling, exposure, output_dir, config, dry_run):
     """Generate Fabry-Perot wavelength calibration frames."""
-    
+    from ..core.simulator import AndesSimulator
+    from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
-        from ..core.config import SourceConfig, FiberConfig, OutputConfig
-        
         if mode == 'single' and fiber is None:
             raise click.BadParameter("--fiber required for single mode")
         
@@ -157,7 +155,7 @@ def fabry_perot(ctx, band, mode, fiber, velocity_shift, scaling, exposure, outpu
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(get_all_bands()),
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
               help='Spectral band')
 @click.option('--spectrum', required=True, type=click.Path(exists=True, path_type=Path),
               help='CSV spectrum file')
@@ -171,7 +169,9 @@ def fabry_perot(ctx, band, mode, fiber, velocity_shift, scaling, exposure, outpu
 @click.pass_context
 def spectrum(ctx, band, spectrum, fiber, scaling, exposure, output_dir, config, dry_run):
     """Generate stellar spectrum observations."""
-    
+    from ..core.simulator import AndesSimulator
+    from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
@@ -205,7 +205,7 @@ def spectrum(ctx, band, spectrum, fiber, scaling, exposure, output_dir, config, 
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(get_all_bands()),
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
               help='Spectral band')
 @click.option('--zemax-file', type=str, help='ZEMAX file name (uses default if not specified)')
 @click.option('--output', type=click.Path(path_type=Path), help='Output HDF file path')
@@ -215,7 +215,8 @@ def spectrum(ctx, band, spectrum, fiber, scaling, exposure, output_dir, config, 
 @click.pass_context
 def generate_hdf(ctx, band, zemax_file, output, n_transform, n_psf, dry_run):
     """Generate HDF instrument model files from ZEMAX."""
-    
+    from ..models.hdf_builder import AndesHDFBuilder
+
     if dry_run:
         click.echo("Dry run - would execute:")
         click.echo(f"  Band: {band}")
@@ -248,7 +249,7 @@ def generate_hdf(ctx, band, zemax_file, output, n_transform, n_psf, dry_run):
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(get_all_bands()),
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
               help='Spectral band')
 @click.option('--input-pattern', required=True, type=str,
               help='Input file pattern (e.g., "{band}_FP_fiber{fib:02d}_shift*.fits")')
@@ -263,7 +264,8 @@ def generate_hdf(ctx, band, zemax_file, output, n_transform, n_psf, dry_run):
 @click.pass_context
 def psf_process(ctx, band, input_pattern, kernel_size, fwhm, edge_blank, output_dir, visualize, dry_run):
     """Apply PSF convolution to simulation outputs."""
-    
+    from ..postprocess.psf import PSFProcessor
+
     # Parse kernel size
     try:
         dimx, dimy = map(int, kernel_size.split(','))
@@ -305,7 +307,7 @@ def psf_process(ctx, band, input_pattern, kernel_size, fwhm, edge_blank, output_
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(get_all_bands()),
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
               help='Spectral band')
 @click.option('--input-pattern', required=True, type=str,
               help='Input file pattern (e.g., "{band}_FP_fiber{fib:02d}_shift*.fits")')
@@ -320,7 +322,8 @@ def psf_process(ctx, band, input_pattern, kernel_size, fwhm, edge_blank, output_
 @click.pass_context
 def combine(ctx, band, input_pattern, mode, fibers, output, output_dir, report, dry_run):
     """Combine individual fiber outputs."""
-    
+    from ..postprocess.combine import FiberCombiner
+
     if dry_run:
         click.echo("Dry run - would execute:")
         click.echo(f"  Band: {band}")
@@ -417,7 +420,9 @@ def combine(ctx, band, input_pattern, mode, fibers, output, output_dir, report, 
 @click.pass_context
 def run_config(ctx, config, dry_run):
     """Run simulation from YAML configuration file."""
-    
+    from ..core.simulator import AndesSimulator
+    from ..core.config import SimulationConfig
+
     # Load configuration
     sim_config = SimulationConfig.from_yaml(config)
     
@@ -446,7 +451,8 @@ def run_config(ctx, config, dry_run):
 @click.pass_context
 def create_templates(ctx, output_dir):
     """Create template configuration files."""
-    
+    from ..core.config import create_template_configs
+
     if not output_dir.is_absolute():
         if ctx.obj['project_root']:
             output_dir = ctx.obj['project_root'] / output_dir
@@ -465,7 +471,7 @@ def create_templates(ctx, output_dir):
 @click.pass_context
 def list_bands(ctx):
     """List available spectral bands."""
-    bands = get_all_bands()
+    bands = ANDES_BANDS
     click.echo("Available spectral bands:")
     for band in bands:
         click.echo(f"  {band}")
