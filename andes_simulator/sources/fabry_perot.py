@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 import random
 
-from pyechelle.sources import CSV, Constant
+from pyechelle.sources import CSVSource, ConstantPhotonFlux
 
 
 class FabryPerotSource:
@@ -51,7 +51,7 @@ class FabryPerotSource:
             'UBV': 'FP_simulation_UBV_finesse_23.csv'
         }
         
-        self.dark_source = Constant(0.0)
+        self.dark_source = ConstantPhotonFlux(0.0)
         self._base_fp_source = None
     
     def _get_fp_file(self) -> Path:
@@ -71,7 +71,7 @@ class FabryPerotSource:
         
         return fp_path
     
-    def _create_fp_source(self, velocity_shift: Optional[float] = None) -> CSV:
+    def _create_fp_source(self, velocity_shift: Optional[float] = None) -> CSVSource:
         """
         Create a single FP source with optional velocity shift.
         
@@ -82,13 +82,13 @@ class FabryPerotSource:
             
         Returns
         -------
-        CSV
+        CSVSource
             FP spectrum source
         """
         fp_path = self._get_fp_file()
         
-        # Create CSV source
-        fp_source = CSV(
+        # Create CSVSource source
+        fp_source = CSVSource(
             filepath=str(fp_path),
             wavelength_unit="nm",
             flux_in_photons=True
@@ -226,7 +226,7 @@ class FabryPerotSource:
         return configs
     
     @property
-    def base_fp_source(self) -> CSV:
+    def base_fp_source(self) -> CSVSource:
         """Get the base FP source (cached)."""
         if self._base_fp_source is None:
             self._base_fp_source = self._create_fp_source()

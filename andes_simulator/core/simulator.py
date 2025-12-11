@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional, Union
 
 # Import pyechelle components
 from pyechelle.simulator import Simulator
-from pyechelle.sources import Constant, CSV
+from pyechelle.sources import ConstantPhotonFlux, CSVSource
 from pyechelle.telescope import Telescope
 from pyechelle.spectrograph import ZEMAX, LocalDisturber
 from pyechelle.CCD import CCD
@@ -113,7 +113,7 @@ class AndesSimulator:
         
         # Create base source based on type
         if self.config.source.type == "constant":
-            base_source = Constant(self.config.source.flux)
+            base_source = ConstantPhotonFlux(self.config.source.flux)
             
         elif self.config.source.type == "csv":
             csv_path = Path(self.config.source.filepath)
@@ -121,9 +121,9 @@ class AndesSimulator:
                 csv_path = self.project_root / csv_path
             
             if not csv_path.exists():
-                raise FileNotFoundError(f"CSV source file not found: {csv_path}")
+                raise FileNotFoundError(f"CSVSource source file not found: {csv_path}")
             
-            base_source = CSV(
+            base_source = CSVSource(
                 filepath=str(csv_path),
                 wavelength_unit=self.config.source.wavelength_unit,
                 flux_in_photons=(self.config.source.flux_unit == "ph/s")
@@ -139,7 +139,7 @@ class AndesSimulator:
             if not sed_path.exists():
                 raise FileNotFoundError(f"Fabry-Perot SED file not found: {sed_path}")
             
-            base_source = CSV(
+            base_source = CSVSource(
                 filepath=str(sed_path),
                 wavelength_unit="nm",
                 flux_in_photons=True
@@ -152,7 +152,7 @@ class AndesSimulator:
             raise ValueError(f"Unknown source type: {self.config.source.type}")
         
         # Create fiber source list
-        dark_source = Constant(0.0)
+        dark_source = ConstantPhotonFlux(0.0)
         sources = [dark_source] * n_fibers
         
         # Handle different fiber modes
@@ -397,14 +397,14 @@ class AndesSimulator:
             
             # Set up sources for this fiber
             n_fibers = self.instrument_config['n_fibers']
-            sources = [Constant(0.0)] * n_fibers
+            sources = [ConstantPhotonFlux(0.0)] * n_fibers
             
             # Create source for this fiber
             if self.config.source.type == "constant":
-                fiber_source = Constant(self.config.source.flux)
+                fiber_source = ConstantPhotonFlux(self.config.source.flux)
             elif self.config.source.type == "fabry_perot":
                 sed_path = get_sed_path(self.config.band, self.project_root)
-                fiber_source = CSV(str(sed_path), wavelength_unit="nm", flux_in_photons=True)
+                fiber_source = CSVSource(str(sed_path), wavelength_unit="nm", flux_in_photons=True)
                 if hasattr(fiber_source, 'flux_data'):
                     fiber_source.flux_data *= self.config.source.scaling_factor
             else:

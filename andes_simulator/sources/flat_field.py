@@ -6,7 +6,7 @@ including single fiber, even/odd patterns, and slit-specific illuminations.
 """
 
 from typing import List, Dict, Any, Optional
-from pyechelle.sources import Constant
+from pyechelle.sources import ConstantPhotonFlux
 
 
 class FlatFieldSource:
@@ -27,11 +27,11 @@ class FlatFieldSource:
         Parameters
         ----------
         flux_level : float
-            Constant flux level for illuminated fibers (photons/s)
+            ConstantPhotonFlux flux level for illuminated fibers (photons/s)
         """
         self.flux_level = flux_level
-        self.illuminated_source = Constant(flux_level)
-        self.dark_source = Constant(0.0)
+        self.illuminated_source = ConstantPhotonFlux(flux_level)
+        self.dark_source = ConstantPhotonFlux(0.0)
     
     def get_single_fiber_sources(self, fiber_num: int, n_fibers: int) -> List[Any]:
         """
@@ -181,12 +181,12 @@ class FlatFieldSource:
         sources = [self.dark_source] * n_fibers
         
         # Based on original pyechelle_test_ANDES_ff_calib.py pattern:
-        # science_b = [Constant(0)] * 31 (fibers 1-31 dark)
-        # dark_b = [Constant(0)] (fiber 32 dark)  
+        # science_b = [ConstantPhotonFlux(0)] * 31 (fibers 1-31 dark)
+        # dark_b = [ConstantPhotonFlux(0)] (fiber 32 dark)  
         # sim_cal_b = [science] (fiber 33 illuminated)
         # sim_cal_a = [science] (fiber 34 illuminated)
-        # dark_a = [Constant(0)] (fiber 35 dark)
-        # science_a = [Constant(0)] * 31 (fibers 36-66 dark)
+        # dark_a = [ConstantPhotonFlux(0)] (fiber 35 dark)
+        # science_a = [ConstantPhotonFlux(0)] * 31 (fibers 36-66 dark)
         
         # Illuminate calibration fibers 33 and 34 (indices 32 and 33)
         sources[32] = self.illuminated_source  # Fiber 33

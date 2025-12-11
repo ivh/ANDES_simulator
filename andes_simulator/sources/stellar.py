@@ -2,21 +2,21 @@
 Stellar source configurations for ANDES science simulations.
 
 Provides stellar spectrum sources for science observations using
-custom CSV spectral energy distributions.
+custom CSVSource spectral energy distributions.
 """
 
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 import astropy.units as u
 
-from pyechelle.sources import CSVSource as CSV, Constant, ConstantPhotonFlux
+from pyechelle.sources import CSVSource, ConstantPhotonFlux
 
 
 class StellarSource:
     """
     Manages stellar source configurations for science simulations.
     
-    Handles loading of stellar spectra from CSV files with proper
+    Handles loading of stellar spectra from CSVSource files with proper
     unit handling and flux scaling.
     """
     
@@ -32,7 +32,7 @@ class StellarSource:
         Parameters
         ----------
         spectrum_file : str or Path
-            Path to CSV spectrum file (relative to project root or absolute)
+            Path to CSVSource spectrum file (relative to project root or absolute)
         scaling_factor : float
             Flux scaling factor
         wavelength_unit : str
@@ -52,7 +52,7 @@ class StellarSource:
         else:
             self.project_root = project_root
         
-        self.dark_source = Constant(0.0)
+        self.dark_source = ConstantPhotonFlux(0.0)
         self._base_stellar_source = None
         
         # Resolve full path to spectrum file
@@ -62,20 +62,20 @@ class StellarSource:
         if not self.spectrum_file.exists():
             raise FileNotFoundError(f"Spectrum file not found: {self.spectrum_file}")
     
-    def _create_stellar_source(self) -> CSV:
+    def _create_stellar_source(self) -> CSVSource:
         """
-        Create a stellar spectrum source from CSV file.
+        Create a stellar spectrum source from CSVSource file.
         
         Returns
         -------
-        CSV
+        CSVSource
             Stellar spectrum source
         """
         # Determine flux units for pyechelle
         flux_units = u.Unit(self.flux_unit) if self.flux_unit != "ph/s" else u.Unit("ph/s")
         
-        # Create CSV source
-        stellar_source = CSV(
+        # Create CSVSource source
+        stellar_source = CSVSource(
             str(self.spectrum_file),
             wavelength_units=self.wavelength_unit,
             flux_units=flux_units
@@ -214,7 +214,7 @@ class StellarSource:
         return sources
     
     @property
-    def base_stellar_source(self) -> CSV:
+    def base_stellar_source(self) -> CSVSource:
         """Get the base stellar source (cached)."""
         if self._base_stellar_source is None:
             self._base_stellar_source = self._create_stellar_source()
