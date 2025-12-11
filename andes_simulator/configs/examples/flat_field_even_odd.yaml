@@ -10,10 +10,10 @@ combine_fibers: false
 
 source:
   type: constant
-  flux: 100.0  # 100 ph/s total, will be converted to ~1 ph/s/AA
+  flux: 1.0  # Flux density in ph/s/AA (ConstantPhotonFlux expects this unit)
   filepath: null
   wavelength_unit: nm
-  flux_unit: ph/s  # Total flux - will be distributed over wavelength range
+  flux_unit: ph/s/AA  # Flux per Angstrom - no conversion needed
   scaling_factor: 1.0
 
 fibers:

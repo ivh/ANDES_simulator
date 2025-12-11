@@ -72,7 +72,7 @@ def flat_field(ctx, band, mode, fiber, flux, exposure, output_dir, config, dry_r
             simulation_type="flat_field",
             band=band,
             exposure_time=exposure,
-            source=SourceConfig(type="constant", flux=flux),
+            source=SourceConfig(type="constant", flux=flux, flux_unit="ph/s/AA"),
             fibers=FiberConfig(mode=mode, fibers=fibers),
             output=OutputConfig(directory=str(output_dir) if output_dir else "../{band}/")
         )
