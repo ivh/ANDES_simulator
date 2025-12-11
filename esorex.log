@@ -1,8 +1,0 @@
-
-Start time     : 2025-04-17T08:03:29
-Program name   : esorex
-Severity level : [ INFO  ] 
-
-08:03:29 [ INFO  ] : [tid=000] This is EsoRex, version 3.13.8
-08:03:29 [ INFO  ] : [tid=000] using the libraries: CPL = 7.3.2, CFITSIO = 4.2.0, WCSLIB = 7.12, FFTW (normal precision) = 3.3.9-sse2, FFTW (single precision) = 3.3.9-sse2, OPENMP = 201511
-08:03:29 [ INFO  ] : [tid=000] Invocation command line was: esorex --man-page cr2res_util_extract
