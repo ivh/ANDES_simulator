@@ -61,7 +61,7 @@ class SimulationConfig:
     # Instrument configuration
     hdf_model: Optional[str] = None  # Use default if None
     use_cuda: bool = False
-    max_cpu: int = 1
+    max_cpu: int = 10  # Use performance cores only (M4 has 10 perf + 4 efficiency cores)
     
     # Source configuration
     source: SourceConfig = field(default_factory=SourceConfig)

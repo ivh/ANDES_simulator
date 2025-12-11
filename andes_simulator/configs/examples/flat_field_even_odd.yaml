@@ -3,7 +3,7 @@ band: R
 exposure_time: 30.0
 hdf_model: null
 use_cuda: false
-max_cpu: 1
+max_cpu: 10  # Use performance cores only (M4 has 10 perf + 4 efficiency)
 velocity_shift: null
 thermal_model: null
 combine_fibers: false
