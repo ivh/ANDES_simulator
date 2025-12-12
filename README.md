@@ -1,55 +1,173 @@
-# ANDES E2E Simulation Suite
+# ANDES Simulator
 
-End-to-end simulations for the ANDES high-resolution spectrograph at ESO's ELT.
+End-to-end simulation framework for the ANDES high-resolution spectrograph at ESO's ELT.
+
+A unified framework for running ANDES E2E spectrograph simulations including flat field calibrations, Fabry-Perot wavelength calibrations, stellar observations, and post-processing.
 
 ## Quick Start
 
-### Using the Modern Framework (Recommended)
-
 ```bash
-cd andes_simulator
-andes-sim simulate configs/examples/flat_field_all_fibers.yaml
+# Run a simple flat field simulation
+andes-sim simulate configs/examples/flat_field_single_fiber.yaml
+
+# List available spectral bands
+andes-sim list-bands
+
+# Generate Fabry-Perot calibration
+andes-sim fabry-perot --band Y --mode all
 ```
 
-See [andes_simulator/README.md](andes_simulator/README.md) for complete documentation.
+## Features
 
-### Framework Status
+- **Unified Interface**: Single CLI entry point for all simulation types
+- **Configuration Management**: YAML-based configuration with validation
+- **Batch Processing**: Parallel execution of multiple simulations
+- **Portable Paths**: Works from any directory without hardcoded paths
+- **Post-Processing**: Built-in PSF convolution and fiber combination tools
+- **Extensible**: Easy to add new simulation types and features
 
-⚠️ **Important**: The `andes_simulator` framework has not yet been fully validated against legacy scripts. Before using in production:
-- Run comparison tests between legacy and new framework
-- Verify outputs match within numerical precision
-- Test all required bands and modes
+## Installation
 
-See validation checklist in project cleanup plan.
+### Using uv (Recommended)
 
-## What's in This Directory
+```bash
+# Install with basic dependencies
+uv sync
 
-### andes_simulator/ - Modern Framework
+# Install with all optional dependencies
+uv sync --extra all
 
-Unified simulation framework that replaces all legacy scripts with:
-- Single command-line interface with subcommands
-- YAML-based configuration (no hardcoded parameters)
-- Batch processing with parallel execution
-- Works from any directory (portable paths)
-- Complete feature coverage
+# Install for development
+uv sync --extra development
+```
 
-**Key features:**
-- Flat field simulations (all fiber patterns)
-- Fabry-Perot wavelength calibration
-- Stellar spectrum observations
-- HDF model generation from ZEMAX
-- Post-processing (PSF convolution, fiber combination)
-- Thermal variation testing
+### Using pip
 
-### legacy/ - Archived Scripts
+```bash
+pip install -e .
+pip install -e ".[all]"  # With all optional dependencies
+```
 
-Original standalone scripts (15 files) moved here for reference:
-- `FF_code/` - Flat field scripts (6 variants)
-- `FP_code/` - Fabry-Perot scripts (2 variants)
-- `YJH/` - HDF generation for NIR bands
-- `PSF/` - Post-processing tools
+## Command Line Interface
 
-These scripts are **deprecated** but kept for validation and backward compatibility. See [legacy/README.md](legacy/README.md) for details.
+```bash
+# Generate flat field calibration
+andes-sim flat-field --band Y --mode single --fiber 1
+
+# Generate Fabry-Perot calibration
+andes-sim fabry-perot --band Y --mode all
+
+# Run from configuration file
+andes-sim simulate configs/examples/flat_field_all_fibers.yaml
+
+# Process with PSF convolution
+andes-sim psf-process --band Y --input-pattern "Y_FP_fiber{fib:02d}_*.fits" --fwhm 3.2
+
+# Combine fiber outputs
+andes-sim combine --band Y --input-pattern "Y_FP_fiber{fib:02d}_*.fits" --mode all
+```
+
+## Python API
+
+```python
+from andes_simulator import AndesSimulator, SimulationConfig
+
+# Quick flat field simulation
+sim = AndesSimulator.quick_flat_field('Y', 'single', fiber=1)
+result = sim.run_simulation()
+
+# From configuration file
+config = SimulationConfig.from_yaml('my_config.yaml')
+sim = AndesSimulator(config)
+result = sim.run_simulation()
+
+# Batch processing
+from andes_simulator.scripts.batch_runner import BatchRunner
+runner = BatchRunner()
+results = runner.quick_fiber_sweep('Y', 'fabry_perot')
+```
+
+## Simulation Types
+
+### Flat Field Calibrations
+- Single fiber illumination
+- Even/odd fiber patterns
+- Pseudo-slit illumination
+- Calibration fiber patterns
+
+### Fabry-Perot Wavelength Calibrations
+- All fiber illumination
+- Single fiber with velocity shifts
+- Thermal variation studies
+
+### Stellar Spectrum Observations
+- Custom CSV spectrum inputs
+- Single fiber observations
+- Flux scaling control
+
+### HDF Model Generation
+- ZEMAX integration
+- Automated fiber field setup
+- PSF and transformation sampling
+
+### Post-Processing
+- PSF convolution with edge-blanking
+- Fiber combination and summation
+- Analysis and reporting tools
+
+## Configuration Files
+
+The framework uses YAML configuration files for reproducible simulations:
+
+```yaml
+simulation_type: fabry_perot
+band: Y
+exposure_time: 30.0
+
+source:
+  type: fabry_perot
+  scaling_factor: 5e9
+
+fibers:
+  mode: all
+  fibers: all
+
+output:
+  directory: "../{band}/"
+  filename_template: "{band}_FP_{exposure}s.fits"
+```
+
+See `andes_simulator/configs/examples/` for template configurations covering all simulation types.
+
+## Spectral Bands
+
+ANDES covers 8 spectral bands:
+- **U, B, V** - Blue arms
+- **R** - Red arm
+- **IZ** - Red/infrared arm
+- **Y, J, H** - Near-infrared arms
+
+## Project Structure
+
+```
+ANDES_simulator/
+├── andes_simulator/           # Modern framework
+│   ├── core/                  # Simulation engine
+│   ├── sources/               # Source models (FF, FP, stellar)
+│   ├── models/                # HDF builders, thermal models
+│   ├── postprocess/           # PSF convolution, fiber combination
+│   ├── cli/                   # Command-line interface
+│   ├── configs/examples/      # Configuration templates
+│   └── README.md              # Framework documentation
+├── legacy/                    # Archived scripts (deprecated)
+│   └── README.md              # Migration guide
+├── HDF/                       # Optical models (ZEMAX .hdf files)
+├── SED/                       # Spectral data (.csv files)
+├── CLAUDE.md                  # AI assistant instructions
+└── README.md                  # This file
+```
+
+## Data Files
 
 ### HDF/ - Optical Models
 
@@ -71,124 +189,85 @@ Fabry-Perot spectral energy distributions (.csv):
 - RIZ FP spectrum (finesse 23)
 - UBV FP spectrum (finesse 26)
 
-## Spectral Bands
+## Migrating from Legacy Scripts
 
-ANDES covers 8 spectral bands:
-- **U, B, V** - Blue arms
-- **R** - Red arm
-- **IZ** - Red/infrared arm
-- **Y, J, H** - Near-infrared arms
+The framework replaces all original E2E scripts with a unified interface:
 
-## Common Tasks
+| Legacy Script | New Command |
+|---------------|-------------|
+| `FF_code/pyechelle_test_ANDES_ff_single_fiber.py` | `andes-sim flat-field --mode single` |
+| `FP_code/pyechelle_test_ANDES_fp.py` | `andes-sim fabry-perot --mode all` |
+| `PSF/Dkernel.py` | `andes-sim psf-process` |
+| `PSF/sumIFU.py` | `andes-sim combine` |
 
-### Simulate a flat field (all fibers)
+See `andes_simulator/ORIGINAL_SCRIPT_MAPPING.md` for complete migration guide.
 
-**New framework:**
-```bash
-cd andes_simulator
-andes-sim simulate configs/examples/flat_field_all_fibers.yaml
-```
-
-**Legacy:**
-```bash
-uv run legacy/FF_code/pyechelle_test_ANDES_ff.py
-```
-
-### Simulate Fabry-Perot calibration
-
-**New framework:**
-```bash
-cd andes_simulator
-andes-sim simulate configs/examples/fabry_perot_wavelength_cal.yaml
-```
-
-**Legacy:**
-```bash
-uv run legacy/FP_code/pyechelle_test_ANDES_fp.py
-```
-
-### Generate HDF model from ZEMAX
-
-**New framework:**
-```bash
-cd andes_simulator
-andes-sim build-hdf configs/examples/hdf_generation.yaml
-```
-
-**Legacy:**
-```bash
-uv run legacy/YJH/MakeHDF_Yband.py
-```
-
-### Post-process: Combine fibers with PSF
-
-**New framework:**
-```bash
-cd andes_simulator
-andes-sim postprocess --mode convolve --band R
-```
-
-**Legacy:**
-```bash
-uv run legacy/PSF/Dkernel.py R 5,5,3.2,left
-```
+Legacy scripts are archived in `legacy/` directory for reference and validation purposes only.
 
 ## Development
 
-### Dependencies
+### Running Tests
 
-- Python 3.13+
-- PyEchelle (optical simulation engine)
-- NumPy, SciPy, Astropy
-- YAML configuration support
-
-Install via:
 ```bash
-cd andes_simulator
-uv sync
+uv run pytest
+uv run pytest --cov=andes_simulator
 ```
 
-### Project Structure
+### Code Formatting
 
-```
-src/
-├── andes_simulator/           # Modern framework
-│   ├── core/                  # Simulation engine
-│   ├── sources/               # Source models (FF, FP, stellar)
-│   ├── models/                # HDF builders, thermal models
-│   ├── postprocess/           # PSF convolution, fiber combination
-│   ├── cli/                   # Command-line interface
-│   ├── configs/examples/      # Configuration templates
-│   └── README.md              # Framework documentation
-├── legacy/                    # Archived scripts
-│   └── README.md              # Migration guide
-├── HDF/                       # Optical models
-├── SED/                       # Spectral data
-├── CLAUDE.md                  # AI assistant instructions
-└── README.md                  # This file
+```bash
+uv run black andes_simulator/
+uv run flake8 andes_simulator/
+uv run mypy andes_simulator/
 ```
 
-## Documentation
+### Dry Run Testing
 
-- **Framework usage**: [andes_simulator/README.md](andes_simulator/README.md)
-- **Migration guide**: [andes_simulator/ORIGINAL_SCRIPT_MAPPING.md](andes_simulator/ORIGINAL_SCRIPT_MAPPING.md)
-- **Legacy scripts**: [legacy/README.md](legacy/README.md)
-- **AI context**: [CLAUDE.md](CLAUDE.md)
+Test configurations without running full simulations:
+
+```bash
+andes-sim flat-field --band Y --mode single --fiber 1 --dry-run
+andes-sim simulate configs/examples/my_config.yaml --dry-run
+```
+
+## Requirements
+
+- Python ≥ 3.13
+- NumPy ≥ 1.20
+- SciPy ≥ 1.7
+- Astropy ≥ 5.0
+- PyYAML ≥ 6.0
+- Click ≥ 8.0
+
+### Optional Dependencies
+- pyechelle ≥ 0.4.0 (for simulations)
+- matplotlib ≥ 3.5 (for visualizations)
 
 ## Repository
 
-Part of the ANDES E2E Scripts repository:
-- GitHub: ivh/ANDES_E2E_scripts
+- GitHub: https://github.com/ivh/ANDES_simulator
 - Branch: master
 
 ## Support
 
 For questions about:
-- **Framework**: See andes_simulator/README.md
+- **Framework usage**: See andes_simulator/README.md
 - **Legacy scripts**: Check legacy/README.md or git history
 - **ANDES instrument**: Contact ANDES team
+- **Issues**: https://github.com/ivh/ANDES_simulator/issues
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make changes with tests
+4. Run formatting and tests
+5. Submit a pull request
 
 ---
 
-*Last updated: 2025-12-11*
-*Reorganized and cleaned up as part of codebase maintenance*
+*Last updated: 2025-12-12*
