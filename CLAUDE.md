@@ -9,7 +9,7 @@ cd andes_simulator
 andes-sim simulate configs/examples/fabry_perot_single_fiber.yaml
 ```
 
-**Framework Status**: ⚠️ Not yet validated against legacy scripts. See validation plan before production use.
+**Framework Status**: ⚠️ Not yet validated against legacy scripts.
 
 **Documentation**: See `andes_simulator/README.md` for complete usage guide.
 

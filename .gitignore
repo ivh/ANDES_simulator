@@ -34,3 +34,5 @@ Thumbs.db
 # Simulation outputs (adjust as needed)
 *.fits
 *.fit
+HDF/
+SED/
