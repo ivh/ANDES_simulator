@@ -145,9 +145,9 @@ class AndesSimulator:
                 raise FileNotFoundError(f"Fabry-Perot SED file not found: {sed_path}")
             
             base_source = CSVSource(
-                filepath=str(sed_path),
-                wavelength_unit="nm",
-                flux_in_photons=True
+                file_path=str(sed_path),
+                wavelength_units="nm",
+                flux_units="ph/s/AA"
             )
             
             # Apply FP scaling

@@ -61,7 +61,7 @@ class SimulationConfig:
     # Instrument configuration
     hdf_model: Optional[str] = None  # Use default if None
     use_cuda: bool = False
-    max_cpu: int = 10  # Use performance cores only (M4 has 10 perf + 4 efficiency cores)
+    max_cpu: int = 1  # Use performance cores only (M4 has 10 perf + 4 efficiency cores)
     
     # Source configuration
     source: SourceConfig = field(default_factory=SourceConfig)
@@ -371,8 +371,6 @@ def create_template_configs(output_dir: Path) -> None:
         exposure_time=30.0,
         source=SourceConfig(type="fabry_perot", scaling_factor=5e9),
         fibers=FiberConfig(mode="all"),
-        use_cuda=False,
-        max_cpu=4
     )
     fp_config.to_yaml(output_dir / "fabry_perot_all_fibers.yaml")
     

@@ -89,9 +89,9 @@ class FabryPerotSource:
         
         # Create CSVSource source
         fp_source = CSVSource(
-            filepath=str(fp_path),
-            wavelength_unit="nm",
-            flux_in_photons=True
+            file_path=str(fp_path),
+            wavelength_units="nm",
+            flux_units="ph/s/AA"
         )
         
         # Apply scaling
