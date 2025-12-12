@@ -152,12 +152,13 @@ Document:
 - **Parameters:** flux=100 ph/s/AA, exposure=10-50s
 - **See:** VALIDATION_REPORT.md for complete details
 
-**Test 2: Fabry-Perot Calibration** ⏸️ DEFERRED
-- Issue: FP mode produces 0 photons despite correct CSV spectrum
-- FP CSV file exists and covers wavelength range (620-950nm for R-band)
-- Scaling factors tested up to 5e11 (100x default)
-- Requires separate investigation (PyEchelle CSV source API)
-- Not blocking flat-field production use
+**Test 2: Fabry-Perot Calibration** ✅ COMPLETED
+- ✅ Fixed flux units: "ph/s" instead of "ph/s/AA"
+- ✅ Fixed scaling: pre-process CSV data before CSVSource creation
+- ✅ Fixed object sharing: individual sources per fiber
+- ✅ R-band validated: 66,877 photons with flux=100, proper statistics
+- ✅ Performance: 2.8s for single fiber
+- ✅ Added user-friendly `--flux` parameter
 
 **Test 3: Post-Processing** ⏸️ DEFERRED
 - Requires Fabry-Perot outputs

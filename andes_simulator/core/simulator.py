@@ -140,19 +140,31 @@ class AndesSimulator:
                 
         elif self.config.source.type == "fabry_perot":
             sed_path = get_sed_path(self.config.band, self.project_root)
-            
+
             if not sed_path.exists():
                 raise FileNotFoundError(f"Fabry-Perot SED file not found: {sed_path}")
-            
-            base_source = CSVSource(
-                file_path=str(sed_path),
-                wavelength_units="nm",
-                flux_units="ph/s/AA"
+
+            # FP spectrum is in arbitrary units - must scale flux values
+            # PyEchelle's CSVSource requires a file path, so we scale data first
+            import pandas as pd
+            import tempfile
+
+            df = pd.read_csv(sed_path, header=None, names=['wavelength', 'flux'])
+            df['flux'] *= self.config.source.scaling_factor
+
+            # Write to temporary file (will be cleaned up by OS)
+            self._fp_temp_file = tempfile.NamedTemporaryFile(
+                mode='w', suffix='.csv', delete=False
             )
-            
-            # Apply FP scaling
-            if hasattr(base_source, 'flux_data'):
-                base_source.flux_data *= self.config.source.scaling_factor
+            df.to_csv(self._fp_temp_file.name, index=False, header=False)
+            self._fp_temp_file.close()
+
+            base_source = CSVSource(
+                file_path=self._fp_temp_file.name,
+                wavelength_units="nm",
+                flux_units="ph/s",
+                list_like=False
+            )
         else:
             raise ValueError(f"Unknown source type: {self.config.source.type}")
         
@@ -177,8 +189,18 @@ class AndesSimulator:
                             self.config.source.flux_unit
                         )
                         sources[fiber_idx - 1] = ConstantPhotonFlux(flux_value)
+                    elif self.config.source.type == "fabry_perot":
+                        # Create individual FP source for each fiber
+                        # PyEchelle requires separate object instances
+                        # Use the pre-scaled temp file created above
+                        sources[fiber_idx - 1] = CSVSource(
+                            file_path=self._fp_temp_file.name,
+                            wavelength_units="nm",
+                            flux_units="ph/s",
+                            list_like=False
+                        )
                     else:
-                        # For CSV and FP sources, reuse base_source (they're read-only)
+                        # For other CSV sources, reuse base_source
                         sources[fiber_idx - 1] = base_source
         
         self.sources = sources

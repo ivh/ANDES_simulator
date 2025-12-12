@@ -26,11 +26,11 @@ class OutputConfig:
 class SourceConfig:
     """Configuration for source spectrum."""
     type: str = "constant"  # constant, csv, fabry_perot
-    flux: float = 0.001     # For constant sources
+    flux: float = 1.0
+    scaling_factor: float = 1.0
     filepath: Optional[str] = None  # For CSV sources
     wavelength_unit: str = "nm"
     flux_unit: str = "ph/s"
-    scaling_factor: float = 1.0
 
 
 @dataclass

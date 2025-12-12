@@ -20,9 +20,9 @@ class FabryPerotSource:
     different spectral bands and supports velocity shift simulations.
     """
     
-    def __init__(self, 
+    def __init__(self,
                  band: str,
-                 scaling_factor: float = 5e9,
+                 scaling_factor: float = 1e8,
                  project_root: Optional[Path] = None):
         """
         Initialize Fabry-Perot source.
@@ -74,29 +74,50 @@ class FabryPerotSource:
     def _create_fp_source(self, velocity_shift: Optional[float] = None) -> CSVSource:
         """
         Create a single FP source with optional velocity shift.
-        
+
         Parameters
         ----------
         velocity_shift : float, optional
             Velocity shift in m/s for Doppler simulation
-            
+
         Returns
         -------
         CSVSource
             FP spectrum source
         """
+        import pandas as pd
+        import tempfile
+        import os
+
         fp_path = self._get_fp_file()
-        
-        # Create CSVSource source
+
+        # Read CSV and apply scaling factor BEFORE creating CSVSource
+        # This preserves units properly (modifying after creation breaks them)
+        df = pd.read_csv(fp_path, header=None, names=['wavelength', 'flux'])
+        df['flux'] = df['flux'] * self.scaling_factor
+
+        # Create temporary file with scaled data in project SED directory
+        # Use a persistent location instead of system temp to avoid cleanup issues
+        scaled_fp_dir = self.project_root / 'SED' / '.scaled_fp'
+        scaled_fp_dir.mkdir(exist_ok=True)
+
+        # Create unique filename based on band and scaling factor
+        scaled_filename = f'FP_{self.band}_scaled_{self.scaling_factor:.0e}.csv'
+        scaled_fp_path = scaled_fp_dir / scaled_filename
+
+        # Write scaled data only if not already exists
+        if not scaled_fp_path.exists():
+            df.to_csv(scaled_fp_path, index=False, header=False)
+
+        # Create CSVSource with scaled data
+        # Use ph/s (integrated photons) not ph/s/AA (flux density)
+        # list_like=False (default) - FP is a densely sampled continuous spectrum
         fp_source = CSVSource(
-            file_path=str(fp_path),
+            file_path=str(scaled_fp_path),
             wavelength_units="nm",
-            flux_units="ph/s/AA"
+            flux_units="ph/s",
+            list_like=False
         )
-        
-        # Apply scaling
-        if hasattr(fp_source, 'flux_data'):
-            fp_source.flux_data *= self.scaling_factor
         
         # Note: Velocity shifts are typically handled at the spectrograph level
         # through LocalDisturber rather than modifying the source spectrum
@@ -107,41 +128,43 @@ class FabryPerotSource:
         
         return fp_source
     
-    def get_all_fibers_sources(self, 
+    def get_all_fibers_sources(self,
                               n_fibers: int,
                               skip_fibers: Optional[List[int]] = None) -> List[Any]:
         """
         Get FP sources for all fibers.
-        
+
         Parameters
         ----------
         n_fibers : int
             Total number of fibers
         skip_fibers : List[int], optional
             List of 1-based fiber numbers to keep dark
-            
+
         Returns
         -------
         List
             Source list with all fibers having FP illumination
         """
-        fp_source = self._create_fp_source()
-        sources = [fp_source] * n_fibers
-        
-        if skip_fibers:
-            for fiber_num in skip_fibers:
-                if 1 <= fiber_num <= n_fibers:
-                    sources[fiber_num - 1] = self.dark_source
-        
+        # Create individual FP source objects for each fiber
+        # PyEchelle requires separate object instances to avoid state sharing
+        sources = []
+        for fiber_idx in range(n_fibers):
+            fiber_num = fiber_idx + 1
+            if skip_fibers and fiber_num in skip_fibers:
+                sources.append(ConstantPhotonFlux(0.0))
+            else:
+                sources.append(self._create_fp_source())
+
         return sources
     
-    def get_single_fiber_sources(self, 
-                                fiber_num: int, 
+    def get_single_fiber_sources(self,
+                                fiber_num: int,
                                 n_fibers: int,
                                 velocity_shift: Optional[float] = None) -> List[Any]:
         """
         Get FP source for single fiber with optional velocity shift.
-        
+
         Parameters
         ----------
         fiber_num : int
@@ -150,7 +173,7 @@ class FabryPerotSource:
             Total number of fibers
         velocity_shift : float, optional
             Velocity shift in m/s
-            
+
         Returns
         -------
         List
@@ -158,11 +181,13 @@ class FabryPerotSource:
         """
         if not (1 <= fiber_num <= n_fibers):
             raise ValueError(f"Fiber number {fiber_num} out of range [1, {n_fibers}]")
-        
-        sources = [self.dark_source] * n_fibers
+
+        # Create individual dark source objects for each fiber
+        # PyEchelle requires separate object instances to avoid state sharing
+        sources = [ConstantPhotonFlux(0.0) for _ in range(n_fibers)]
         fp_source = self._create_fp_source(velocity_shift)
         sources[fiber_num - 1] = fp_source
-        
+
         return sources
     
     def get_random_velocity_shift(self, sigma_ms: float = 100.0) -> float:

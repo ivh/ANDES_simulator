@@ -46,14 +46,16 @@ def cli(ctx, verbose, project_root):
               type=click.Choice(['all', 'single', 'even_odd', 'first_slit', 'second_slit', 'calib']),
               help='Fiber illumination mode')
 @click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
-@click.option('--flux', default=0.001, type=float, help='Flux level for flat field')
-@click.option('--exposure', default=30.0, type=float, help='Exposure time in seconds')
+@click.option('--flux', default=1.0, type=float, help='Flux level for flat field')
+@click.option('--scaling', type=float, default=0.001
+              help='Direct scaling factor')
+@click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')
 @click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
 @click.option('--config', type=click.Path(exists=True, path_type=Path), 
               help='YAML configuration file')
 @click.option('--dry-run', is_flag=True, help='Show what would be done without running')
 @click.pass_context
-def flat_field(ctx, band, mode, fiber, flux, exposure, output_dir, config, dry_run):
+def flat_field(ctx, band, mode, fiber, flux, scaling, exposure, output_dir, config, dry_run):
     """Generate flat field calibration frames."""
     from ..core.simulator import AndesSimulator
     from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
@@ -72,7 +74,7 @@ def flat_field(ctx, band, mode, fiber, flux, exposure, output_dir, config, dry_r
             simulation_type="flat_field",
             band=band,
             exposure_time=exposure,
-            source=SourceConfig(type="constant", flux=flux, flux_unit="ph/s/AA"),
+            source=SourceConfig(type="constant", flux=flux, scaling_factor=scaling, flux_unit="ph/s/AA"),
             fibers=FiberConfig(mode=mode, fibers=fibers),
             output=OutputConfig(directory=str(output_dir) if output_dir else "../{band}/")
         )
@@ -110,14 +112,17 @@ def flat_field(ctx, band, mode, fiber, flux, exposure, output_dir, config, dry_r
               help='Fiber illumination mode')
 @click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
-@click.option('--scaling', default=5e9, type=float, help='FP flux scaling factor')
+@click.option('--flux', default=1.0, type=float,
+              help='FP brightness level (arbitrary units, ~1000 gives good S/N)')
+@click.option('--scaling', type=float,
+              help='Direct scaling factor (overrides --flux if provided)')
 @click.option('--exposure', default=30.0, type=float, help='Exposure time in seconds')
 @click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
 @click.option('--config', type=click.Path(exists=True, path_type=Path),
               help='YAML configuration file')
 @click.option('--dry-run', is_flag=True, help='Show what would be done without running')
 @click.pass_context
-def fabry_perot(ctx, band, mode, fiber, velocity_shift, scaling, exposure, output_dir, config, dry_run):
+def fabry_perot(ctx, band, mode, fiber, velocity_shift, flux, scaling, exposure, output_dir, config, dry_run):
     """Generate Fabry-Perot wavelength calibration frames."""
     from ..core.simulator import AndesSimulator
     from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
@@ -127,15 +132,15 @@ def fabry_perot(ctx, band, mode, fiber, velocity_shift, scaling, exposure, outpu
     else:
         if mode == 'single' and fiber is None:
             raise click.BadParameter("--fiber required for single mode")
-        
+
         fibers = [fiber] if mode == 'single' else "all"
-        
+
         sim_config = SimulationConfig(
             simulation_type="fabry_perot",
             band=band,
             exposure_time=exposure,
             velocity_shift=velocity_shift,
-            source=SourceConfig(type="fabry_perot", scaling_factor=scaling),
+            source=SourceConfig(type="fabry_perot", scaling_factor=scaling, flux=flux),
             fibers=FiberConfig(mode=mode, fibers=fibers),
             output=OutputConfig(directory=str(output_dir) if output_dir else "../{band}/")
         )
@@ -145,7 +150,8 @@ def fabry_perot(ctx, band, mode, fiber, velocity_shift, scaling, exposure, outpu
         click.echo(f"  Band: {sim_config.band}")
         click.echo(f"  Mode: {sim_config.fibers.mode}")
         click.echo(f"  Velocity shift: {sim_config.velocity_shift} m/s" if sim_config.velocity_shift else "  No velocity shift")
-        click.echo(f"  Scaling: {sim_config.source.scaling_factor}")
+        click.echo(f"  Flux level: {flux}")
+        click.echo(f"  Scaling factor: {sim_config.source.scaling_factor:.2e}")
         return
     
     # Create and run simulator
