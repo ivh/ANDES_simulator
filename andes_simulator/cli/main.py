@@ -16,7 +16,12 @@ except ImportError:
     print("Error: click package required for CLI. Install with: pip install click")
     sys.exit(1)
 
-# Heavy imports moved to lazy loading within commands to speed up --help
+from .utils import (
+    run_simulation_command,
+    build_config_from_options,
+    format_dry_run_output,
+    setup_logging
+)
 
 # Lightweight band list for CLI validation (avoids importing instruments module)
 ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
@@ -29,9 +34,7 @@ ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
 @click.pass_context
 def cli(ctx, verbose, project_root):
     """ANDES E2E Simulation Framework - Unified simulation and analysis tools."""
-    # Set up logging
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(level=level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    setup_logging(verbose)
     
     # Store context
     ctx.ensure_object(dict)
@@ -46,9 +49,10 @@ def cli(ctx, verbose, project_root):
               type=click.Choice(['all', 'single', 'even_odd', 'first_slit', 'second_slit', 'calib']),
               help='Fiber illumination mode')
 @click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
-@click.option('--flux', default=1.0, type=float, help='Flux level for flat field')
-@click.option('--scaling', type=float, default=0.001
-              help='Direct scaling factor')
+@click.option('--flux', default=1.0, type=float, 
+              help='Flux multiplier (multiplied with scaling)')
+@click.option('--scaling', type=float, default=2e5,
+              help='Base scaling factor (default calibrated for flux=1)')
 @click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')
 @click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
 @click.option('--config', type=click.Path(exists=True, path_type=Path), 
@@ -57,51 +61,30 @@ def cli(ctx, verbose, project_root):
 @click.pass_context
 def flat_field(ctx, band, mode, fiber, flux, scaling, exposure, output_dir, config, dry_run):
     """Generate flat field calibration frames."""
-    from ..core.simulator import AndesSimulator
-    from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+    from ..core.config import SimulationConfig
 
     if config:
-        # Load from configuration file
         sim_config = SimulationConfig.from_yaml(config)
     else:
-        # Create configuration from command line options
-        if mode == 'single' and fiber is None:
-            raise click.BadParameter("--fiber required for single mode")
-        
-        fibers = [fiber] if mode == 'single' else "all"
-        
-        sim_config = SimulationConfig(
+        sim_config = build_config_from_options(
             simulation_type="flat_field",
             band=band,
-            exposure_time=exposure,
-            source=SourceConfig(type="constant", flux=flux, scaling_factor=scaling, flux_unit="ph/s/AA"),
-            fibers=FiberConfig(mode=mode, fibers=fibers),
-            output=OutputConfig(directory=str(output_dir) if output_dir else "../{band}/")
+            exposure=exposure,
+            source_type="constant",
+            fiber_mode=mode,
+            output_dir=output_dir,
+            fiber=fiber,
+            flux=flux,
+            scaling=scaling,
+            flux_unit="ph/s/AA"
         )
     
-    if dry_run:
-        click.echo("Dry run - would execute:")
-        click.echo(f"  Band: {sim_config.band}")
-        click.echo(f"  Mode: {sim_config.fibers.mode}")
-        click.echo(f"  Exposure: {sim_config.exposure_time}s")
-        click.echo(f"  Flux: {sim_config.source.flux}")
-        return
-    
-    # Create and run simulator
-    simulator = AndesSimulator(sim_config)
-    
-    if mode == 'single' and isinstance(sim_config.fibers.fibers, list) and len(sim_config.fibers.fibers) == 1:
-        # Single fiber mode
-        result = simulator.run_simulation()
-        click.echo(f"Flat field simulation completed for fiber {sim_config.fibers.fibers[0]}")
-    elif mode == 'even_odd':
-        # Even/odd mode creates two files
-        results = simulator.run_simulation()
-        click.echo("Even/odd flat field simulations completed")
-    else:
-        # Standard modes
-        result = simulator.run_simulation()
-        click.echo(f"Flat field simulation completed: {mode} mode")
+    run_simulation_command(
+        sim_config,
+        dry_run,
+        lambda: format_dry_run_output(sim_config),
+        f"Flat field simulation completed ({mode} mode)"
+    )
 
 
 @cli.command()
@@ -113,10 +96,10 @@ def flat_field(ctx, band, mode, fiber, flux, scaling, exposure, output_dir, conf
 @click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
 @click.option('--flux', default=1.0, type=float,
-              help='FP brightness level (arbitrary units, ~1000 gives good S/N)')
-@click.option('--scaling', type=float,
-              help='Direct scaling factor (overrides --flux if provided)')
-@click.option('--exposure', default=30.0, type=float, help='Exposure time in seconds')
+              help='FP brightness level (multiplied with scaling, ~1000 gives good S/N)')
+@click.option('--scaling', type=float, default=1e5,
+              help='Base scaling factor (default calibrated for flux=1)')
+@click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')
 @click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
 @click.option('--config', type=click.Path(exists=True, path_type=Path),
               help='YAML configuration file')
@@ -124,40 +107,30 @@ def flat_field(ctx, band, mode, fiber, flux, scaling, exposure, output_dir, conf
 @click.pass_context
 def fabry_perot(ctx, band, mode, fiber, velocity_shift, flux, scaling, exposure, output_dir, config, dry_run):
     """Generate Fabry-Perot wavelength calibration frames."""
-    from ..core.simulator import AndesSimulator
-    from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+    from ..core.config import SimulationConfig
 
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
-        if mode == 'single' and fiber is None:
-            raise click.BadParameter("--fiber required for single mode")
-
-        fibers = [fiber] if mode == 'single' else "all"
-
-        sim_config = SimulationConfig(
+        sim_config = build_config_from_options(
             simulation_type="fabry_perot",
             band=band,
-            exposure_time=exposure,
-            velocity_shift=velocity_shift,
-            source=SourceConfig(type="fabry_perot", scaling_factor=scaling, flux=flux),
-            fibers=FiberConfig(mode=mode, fibers=fibers),
-            output=OutputConfig(directory=str(output_dir) if output_dir else "../{band}/")
+            exposure=exposure,
+            source_type="fabry_perot",
+            fiber_mode=mode,
+            output_dir=output_dir,
+            fiber=fiber,
+            flux=flux,
+            scaling=scaling,
+            velocity_shift=velocity_shift
         )
     
-    if dry_run:
-        click.echo("Dry run - would execute:")
-        click.echo(f"  Band: {sim_config.band}")
-        click.echo(f"  Mode: {sim_config.fibers.mode}")
-        click.echo(f"  Velocity shift: {sim_config.velocity_shift} m/s" if sim_config.velocity_shift else "  No velocity shift")
-        click.echo(f"  Flux level: {flux}")
-        click.echo(f"  Scaling factor: {sim_config.source.scaling_factor:.2e}")
-        return
-    
-    # Create and run simulator
-    simulator = AndesSimulator(sim_config)
-    result = simulator.run_simulation()
-    click.echo("Fabry-Perot simulation completed")
+    run_simulation_command(
+        sim_config,
+        dry_run,
+        lambda: format_dry_run_output(sim_config),
+        "Fabry-Perot simulation completed"
+    )
 
 
 @cli.command()
@@ -175,39 +148,29 @@ def fabry_perot(ctx, band, mode, fiber, velocity_shift, flux, scaling, exposure,
 @click.pass_context
 def spectrum(ctx, band, spectrum, fiber, scaling, exposure, output_dir, config, dry_run):
     """Generate stellar spectrum observations."""
-    from ..core.simulator import AndesSimulator
-    from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+    from ..core.config import SimulationConfig
 
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
-        from ..core.config import SourceConfig, FiberConfig, OutputConfig
-        
-        sim_config = SimulationConfig(
+        sim_config = build_config_from_options(
             simulation_type="spectrum",
             band=band,
-            exposure_time=exposure,
-            source=SourceConfig(
-                type="csv",
-                filepath=str(spectrum),
-                scaling_factor=scaling
-            ),
-            fibers=FiberConfig(mode="single", fibers=[fiber]),
-            output=OutputConfig(directory=str(output_dir) if output_dir else "../{band}/")
+            exposure=exposure,
+            source_type="csv",
+            fiber_mode="single",
+            output_dir=output_dir,
+            fiber=fiber,
+            scaling=scaling,
+            spectrum_path=spectrum
         )
     
-    if dry_run:
-        click.echo("Dry run - would execute:")
-        click.echo(f"  Band: {sim_config.band}")
-        click.echo(f"  Spectrum: {sim_config.source.filepath}")
-        click.echo(f"  Fiber: {fiber}")
-        click.echo(f"  Scaling: {sim_config.source.scaling_factor}")
-        return
-    
-    # Create and run simulator
-    simulator = AndesSimulator(sim_config)
-    result = simulator.run_simulation()
-    click.echo(f"Spectrum simulation completed for fiber {fiber}")
+    run_simulation_command(
+        sim_config,
+        dry_run,
+        lambda: format_dry_run_output(sim_config),
+        f"Spectrum simulation completed for fiber {fiber}"
+    )
 
 
 @cli.command()
@@ -426,29 +389,16 @@ def combine(ctx, band, input_pattern, mode, fibers, output, output_dir, report, 
 @click.pass_context
 def run_config(ctx, config, dry_run):
     """Run simulation from YAML configuration file."""
-    from ..core.simulator import AndesSimulator
     from ..core.config import SimulationConfig
 
-    # Load configuration
     sim_config = SimulationConfig.from_yaml(config)
     
-    if dry_run:
-        click.echo("Dry run - would execute:")
-        click.echo(f"  Config: {config}")
-        click.echo(f"  Type: {sim_config.simulation_type}")
-        click.echo(f"  Band: {sim_config.band}")
-        click.echo(f"  Fibers: {sim_config.fibers.mode}")
-        return
-    
-    # Create and run simulator
-    simulator = AndesSimulator(sim_config)
-    
-    try:
-        result = simulator.run_simulation()
-        click.echo(f"Simulation completed: {sim_config.simulation_type}")
-    except Exception as e:
-        click.echo(f"Simulation failed: {e}", err=True)
-        sys.exit(1)
+    run_simulation_command(
+        sim_config,
+        dry_run,
+        lambda: format_dry_run_output(sim_config, [f"Config: {config}"]),
+        f"Simulation completed: {sim_config.simulation_type}"
+    )
 
 
 @cli.command()

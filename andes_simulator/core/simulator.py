@@ -21,6 +21,7 @@ from pyechelle.spectrograph import InteractiveZEMAX
 
 from .config import SimulationConfig
 from .instruments import get_instrument_config, get_hdf_model_path, get_sed_path
+from .sources import SourceFactory, SPEED_OF_LIGHT
 
 
 class AndesSimulator:
@@ -48,9 +49,20 @@ class AndesSimulator:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         
+        # Initialize source factory
+        self.source_factory = SourceFactory(self.project_root)
+        
         # Will be set during simulation setup
         self.simulator = None
         self.sources = None
+    
+    def cleanup(self) -> None:
+        """Clean up resources (temporary files, etc.)."""
+        self.source_factory.cleanup()
+    
+    def __del__(self):
+        """Ensure cleanup on deletion."""
+        self.cleanup()
         
     def setup_simulator(self) -> None:
         """Set up the pyechelle simulator with instrument configuration."""
@@ -69,8 +81,7 @@ class AndesSimulator:
         
         # Create spectrograph with optional velocity shift
         if self.config.velocity_shift is not None:
-            # Convert m/s to fractional velocity shift (assuming c ~ 3e8 m/s)
-            tx = self.config.velocity_shift / 3e8
+            tx = self.config.velocity_shift / SPEED_OF_LIGHT
             spec = LocalDisturber(ZEMAX(str(hdf_path)), d_tx=tx)
             self.logger.info(f"Applied velocity shift: {self.config.velocity_shift} m/s")
         else:
@@ -111,170 +122,22 @@ class AndesSimulator:
         n_fibers = self.instrument_config['n_fibers']
         illuminated_fibers = self.config.get_fiber_list()
         
-        # Create base source based on type
-        if self.config.source.type == "constant":
-            # Convert flux to ph/s/AA if needed
-            flux_value = self._convert_flux_units(
-                self.config.source.flux,
-                self.config.source.flux_unit
-            )
-            base_source = ConstantPhotonFlux(flux_value)
-            
-        elif self.config.source.type == "csv":
-            csv_path = Path(self.config.source.filepath)
-            if not csv_path.is_absolute():
-                csv_path = self.project_root / csv_path
-            
-            if not csv_path.exists():
-                raise FileNotFoundError(f"CSVSource source file not found: {csv_path}")
-            
-            base_source = CSVSource(
-                filepath=str(csv_path),
-                wavelength_unit=self.config.source.wavelength_unit,
-                flux_in_photons=(self.config.source.flux_unit == "ph/s")
-            )
-            
-            # Apply scaling if specified
-            if hasattr(base_source, 'flux_data') and self.config.source.scaling_factor != 1.0:
-                base_source.flux_data *= self.config.source.scaling_factor
-                
-        elif self.config.source.type == "fabry_perot":
-            sed_path = get_sed_path(self.config.band, self.project_root)
-
-            if not sed_path.exists():
-                raise FileNotFoundError(f"Fabry-Perot SED file not found: {sed_path}")
-
-            # FP spectrum is in arbitrary units - must scale flux values
-            # PyEchelle's CSVSource requires a file path, so we scale data first
-            import pandas as pd
-            import tempfile
-
-            df = pd.read_csv(sed_path, header=None, names=['wavelength', 'flux'])
-            df['flux'] *= self.config.source.scaling_factor
-
-            # Write to temporary file (will be cleaned up by OS)
-            self._fp_temp_file = tempfile.NamedTemporaryFile(
-                mode='w', suffix='.csv', delete=False
-            )
-            df.to_csv(self._fp_temp_file.name, index=False, header=False)
-            self._fp_temp_file.close()
-
-            base_source = CSVSource(
-                file_path=self._fp_temp_file.name,
-                wavelength_units="nm",
-                flux_units="ph/s",
-                list_like=False
-            )
-        else:
-            raise ValueError(f"Unknown source type: {self.config.source.type}")
-        
-        # Create fiber source list - each fiber needs its own source object
-        # because PyEchelle may modify sources during simulation
-        sources = [ConstantPhotonFlux(0.0) for _ in range(n_fibers)]
-
-        # Handle different fiber modes
+        # Handle even/odd mode specially
         if self.config.fibers.mode == "even_odd":
-            # Special handling for even/odd illumination
-            # This will be handled by running multiple simulations
-            dark_source = ConstantPhotonFlux(0.0)
-            return self._setup_even_odd_sources(base_source, dark_source, n_fibers)
-        else:
-            # Standard illumination pattern - create separate source object for each illuminated fiber
-            for fiber_idx in illuminated_fibers:
-                if 1 <= fiber_idx <= n_fibers:
-                    # Create a new source object for each fiber to avoid PyEchelle issues
-                    if self.config.source.type == "constant":
-                        flux_value = self._convert_flux_units(
-                            self.config.source.flux,
-                            self.config.source.flux_unit
-                        )
-                        sources[fiber_idx - 1] = ConstantPhotonFlux(flux_value)
-                    elif self.config.source.type == "fabry_perot":
-                        # Create individual FP source for each fiber
-                        # PyEchelle requires separate object instances
-                        # Use the pre-scaled temp file created above
-                        sources[fiber_idx - 1] = CSVSource(
-                            file_path=self._fp_temp_file.name,
-                            wavelength_units="nm",
-                            flux_units="ph/s",
-                            list_like=False
-                        )
-                    else:
-                        # For other CSV sources, reuse base_source
-                        sources[fiber_idx - 1] = base_source
-        
-        self.sources = sources
-        return sources
-
-    def _convert_flux_units(self, flux: float, flux_unit: str) -> float:
-        """
-        Convert flux to ph/s/AA as required by ConstantPhotonFlux.
-
-        Parameters
-        ----------
-        flux : float
-            Flux value in the specified units
-        flux_unit : str
-            Unit of flux: "ph/s", "ph/s/AA", or "ph/s/nm"
-
-        Returns
-        -------
-        float
-            Flux in ph/s/AA
-        """
-        if flux_unit == "ph/s/AA":
-            # Already in correct units
-            return flux
-
-        elif flux_unit == "ph/s/nm":
-            # Convert nm to AA: 1 nm = 10 AA, so ph/s/nm * 10 = ph/s/AA
-            return flux / 10.0
-
-        elif flux_unit == "ph/s":
-            # Total flux needs to be distributed over wavelength range
-            # Use a typical order bandwidth for the conversion
-            # For ANDES, typical order bandwidth is ~10-20nm (~100-200 AA)
-            # We'll use 100 AA as a reasonable default
-            typical_bandwidth_aa = 100.0
-
-            logging.warning(
-                f"Converting total flux ({flux} ph/s) to flux density. "
-                f"Using assumed bandwidth of {typical_bandwidth_aa} AA. "
-                f"Result: {flux/typical_bandwidth_aa:.2e} ph/s/AA. "
-                f"For more accurate results, use 'ph/s/AA' or 'ph/s/nm' units."
+            return self.source_factory.create_even_odd_sources(
+                self.config.source,
+                n_fibers,
+                self.config.band
             )
-
-            return flux / typical_bandwidth_aa
-
-        else:
-            raise ValueError(
-                f"Unknown flux_unit '{flux_unit}'. "
-                f"Supported: 'ph/s', 'ph/s/AA', 'ph/s/nm'"
-            )
-
-    def _setup_even_odd_sources(self, base_source, dark_source, n_fibers: int) -> Dict[str, List]:
-        """
-        Set up sources for even/odd fiber illumination.
         
-        Returns
-        -------
-        Dict
-            Dictionary with 'even' and 'odd' source configurations
-        """
-        even_sources = [dark_source] * n_fibers
-        odd_sources = [dark_source] * n_fibers
-        
-        for i in range(n_fibers):
-            fiber_num = i + 1
-            if fiber_num % 2 == 0:  # Even fiber
-                even_sources[i] = base_source
-            else:  # Odd fiber
-                odd_sources[i] = base_source
-        
-        return {
-            'even': even_sources,
-            'odd': odd_sources
-        }
+        # Standard illumination pattern
+        self.sources = self.source_factory.create_fiber_sources(
+            self.config.source,
+            n_fibers,
+            illuminated_fibers,
+            self.config.band
+        )
+        return self.sources
     
     def run_simulation(self, output_path: Optional[Path] = None) -> Any:
         """
@@ -465,12 +328,13 @@ class AndesSimulator:
         
         self.setup_simulator()
         results = {}
+        n_fibers = self.instrument_config['n_fibers']
         
         # Get list of fibers to simulate
         if isinstance(self.config.fibers.fibers, list):
             fiber_list = self.config.fibers.fibers
         else:
-            fiber_list = range(1, self.instrument_config['n_fibers'] + 1)
+            fiber_list = range(1, n_fibers + 1)
         
         for fiber_num in fiber_list:
             if fiber_num in self.config.fibers.skip_fibers:
@@ -478,22 +342,13 @@ class AndesSimulator:
                 
             self.logger.info(f"Simulating fiber {fiber_num}")
             
-            # Set up sources for this fiber
-            n_fibers = self.instrument_config['n_fibers']
-            sources = [ConstantPhotonFlux(0.0)] * n_fibers
-            
-            # Create source for this fiber
-            if self.config.source.type == "constant":
-                fiber_source = ConstantPhotonFlux(self.config.source.flux)
-            elif self.config.source.type == "fabry_perot":
-                sed_path = get_sed_path(self.config.band, self.project_root)
-                fiber_source = CSVSource(str(sed_path), wavelength_unit="nm", flux_in_photons=True)
-                if hasattr(fiber_source, 'flux_data'):
-                    fiber_source.flux_data *= self.config.source.scaling_factor
-            else:
-                raise ValueError("Single fiber batch only supports constant and fabry_perot sources")
-            
-            sources[fiber_num - 1] = fiber_source
+            # Use source factory to create sources for this single fiber
+            sources = self.source_factory.create_fiber_sources(
+                self.config.source,
+                n_fibers,
+                [fiber_num],
+                self.config.band
+            )
             self.simulator.set_sources(sources)
             
             # Set output path
