@@ -168,6 +168,8 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
         click.echo(f"  Flux: {config.source.flux}")
     elif config.source.type == "fabry_perot":
         click.echo(f"  Scaling: {config.source.scaling_factor:.2e}")
+    elif config.source.type == "lfc":
+        click.echo(f"  LFC flux per line: {config.source.scaling_factor:.2e} ph/s")
     elif config.source.type == "csv":
         click.echo(f"  Spectrum: {config.source.filepath}")
         click.echo(f"  Scaling: {config.source.scaling_factor}")

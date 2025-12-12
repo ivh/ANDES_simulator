@@ -68,7 +68,12 @@ class SourceFactory:
             if band is None:
                 raise ValueError("Band required for Fabry-Perot sources")
             return self._create_fabry_perot_source(config, band)
-        
+
+        elif config.type == "lfc":
+            if band is None:
+                raise ValueError("Band required for LFC sources")
+            return self._create_lfc_source(config, band)
+
         else:
             raise ValueError(f"Unknown source type: {config.type}")
     
@@ -195,7 +200,19 @@ class SourceFactory:
             flux_units="ph/s",
             list_like=False
         )
-    
+
+    def _create_lfc_source(self, config: SourceConfig, band: str):
+        """Create an LFC (Laser Frequency Comb) source with discrete emission lines."""
+        from ..sources.lfc import LFCSource
+
+        lfc = LFCSource(
+            band=band,
+            flux_per_line=config.scaling_factor,
+            lines_per_order=100,
+            project_root=self.project_root
+        )
+        return lfc._create_lfc_source()
+
     def _convert_flux_units(self, flux: float, flux_unit: str) -> float:
         """
         Convert flux to ph/s/AA as required by ConstantPhotonFlux.

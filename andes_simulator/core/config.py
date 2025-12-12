@@ -95,7 +95,7 @@ class SimulationConfig:
             raise ValueError(f"Invalid band '{self.band}'. Available: {get_all_bands()}")
         
         # Validate simulation type
-        valid_sim_types = ["flat_field", "fabry_perot", "spectrum", "hdf_generation"]
+        valid_sim_types = ["flat_field", "fabry_perot", "spectrum", "lfc", "hdf_generation"]
         if self.simulation_type not in valid_sim_types:
             raise ValueError(f"Invalid simulation_type '{self.simulation_type}'. Available: {valid_sim_types}")
         
@@ -105,7 +105,7 @@ class SimulationConfig:
             raise ValueError(f"Invalid fiber mode '{self.fibers.mode}'. Available: {valid_fiber_modes}")
         
         # Validate source type
-        valid_source_types = ["constant", "csv", "fabry_perot"]
+        valid_source_types = ["constant", "csv", "fabry_perot", "lfc"]
         if self.source.type not in valid_source_types:
             raise ValueError(f"Invalid source type '{self.source.type}'. Available: {valid_source_types}")
         
@@ -243,6 +243,11 @@ class SimulationConfig:
                 filename = f"{self.band}_spectrum_fiber{fiber_num:02d}.fits"
             else:
                 filename = f"{self.band}_spectrum_{int(self.exposure_time)}s.fits"
+        elif self.simulation_type == "lfc":
+            if fiber_num is not None:
+                filename = f"{self.band}_LFC_fiber{fiber_num:02d}.fits"
+            else:
+                filename = f"{self.band}_LFC_{self.fibers.mode}_{int(self.exposure_time)}s.fits"
         elif self.simulation_type == "hdf_generation":
             filename = f"ANDES_75fibre_{self.band}.hdf" if self.band in ['Y', 'J', 'H'] else f"ANDES_123_{self.band}3.hdf"
         else:

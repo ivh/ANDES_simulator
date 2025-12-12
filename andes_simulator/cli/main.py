@@ -136,6 +136,49 @@ def fabry_perot(ctx, band, mode, fiber, velocity_shift, flux, scaling, exposure,
 @cli.command()
 @click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
               help='Spectral band')
+@click.option('--mode', default='all',
+              type=click.Choice(['all', 'single']),
+              help='Fiber illumination mode')
+@click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
+@click.option('--flux', default=1.0, type=float,
+              help='LFC line brightness (multiplied with scaling)')
+@click.option('--scaling', type=float, default=1e5,
+              help='Base scaling factor for flux per line (ph/s)')
+@click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')
+@click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
+@click.option('--dry-run', is_flag=True, help='Show what would be done without running')
+@click.pass_context
+def lfc(ctx, band, mode, fiber, flux, scaling, exposure, output_dir, dry_run):
+    """Generate Laser Frequency Comb wavelength calibration frames.
+
+    LFC produces unresolved emission lines equidistant in velocity,
+    with approximately 100 lines per spectral order.
+    """
+    from ..core.config import SimulationConfig
+
+    sim_config = build_config_from_options(
+        simulation_type="lfc",
+        band=band,
+        exposure=exposure,
+        source_type="lfc",
+        fiber_mode=mode,
+        output_dir=output_dir,
+        fiber=fiber,
+        flux=flux,
+        scaling=scaling
+    )
+
+    run_simulation_command(
+        sim_config,
+        dry_run,
+        lambda: format_dry_run_output(sim_config),
+        "LFC simulation completed"
+    )
+
+
+@cli.command()
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
+              help='Spectral band')
 @click.option('--spectrum', required=True, type=click.Path(exists=True, path_type=Path),
               help='CSV spectrum file')
 @click.option('--fiber', required=True, type=int, help='Fiber number to illuminate')
