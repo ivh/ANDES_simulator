@@ -121,7 +121,7 @@ class SourceFactory:
     ) -> dict:
         """
         Create source configurations for even/odd fiber illumination.
-        
+
         Parameters
         ----------
         config : SourceConfig
@@ -130,21 +130,23 @@ class SourceFactory:
             Total number of fibers
         band : str, optional
             Spectral band
-            
+
         Returns
         -------
         Dict with 'even' and 'odd' source lists
         """
-        even_sources = [self.create_dark_source() for _ in range(n_fibers)]
-        odd_sources = [self.create_dark_source() for _ in range(n_fibers)]
-        
+        even_sources = [None] * n_fibers
+        odd_sources = [None] * n_fibers
+
         for i in range(n_fibers):
             fiber_num = i + 1
             if fiber_num % 2 == 0:
                 even_sources[i] = self.create_source(config, band)
+                odd_sources[i] = self.create_dark_source()
             else:
+                even_sources[i] = self.create_dark_source()
                 odd_sources[i] = self.create_source(config, band)
-        
+
         return {'even': even_sources, 'odd': odd_sources}
     
     def _create_csv_source(self, config: SourceConfig) -> CSVSource:

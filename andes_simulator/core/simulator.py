@@ -272,12 +272,12 @@ class AndesSimulator:
     def run_even_odd_simulation(self, output_path: Optional[Path] = None) -> Dict[str, Any]:
         """
         Run even/odd fiber simulation (creates two output files).
-        
+
         Parameters
         ----------
         output_path : Path, optional
             Base output path
-            
+
         Returns
         -------
         Dict
@@ -285,28 +285,31 @@ class AndesSimulator:
         """
         sources_dict = self.setup_sources()
         results = {}
-        
+
         for mode in ['even', 'odd']:
             self.logger.info(f"Running {mode} fiber simulation")
-            
+
+            # Create fresh simulator for each run to avoid state contamination
+            self.setup_simulator()
+
             # Set sources for this mode
             self.simulator.set_sources(sources_dict[mode])
-            
+
             # Set output path
             if output_path is None:
                 out_path = self.config.get_output_path(suffix=mode)
             else:
                 out_path = output_path.parent / f"{output_path.stem}_{mode}{output_path.suffix}"
-            
+
             out_path.parent.mkdir(parents=True, exist_ok=True)
             self.simulator.set_output(str(out_path), overwrite=self.config.output.overwrite)
-            
+
             # Run simulation
             result = self.simulator.run()
             results[mode] = result
-            
+
             self.logger.info(f"{mode.capitalize()} simulation completed: {out_path}")
-        
+
         return results
     
     def run_single_fiber_batch(self, output_dir: Optional[Path] = None) -> Dict[int, Any]:
