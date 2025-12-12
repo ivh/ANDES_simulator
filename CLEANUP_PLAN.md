@@ -1,8 +1,8 @@
 # ANDES E2E src Directory Cleanup Plan
 
-**Status:** Phase 4 in progress (Framework Validation)
+**Status:** Phase 4 completed (Framework Validation - Flat Field)
 **Date Started:** 2025-12-11
-**Last Updated:** 2025-12-11
+**Last Updated:** 2025-12-12
 
 ---
 
@@ -99,7 +99,7 @@ Document:
 
 ---
 
-## Phase 4: Framework Validation ⏳ IN PROGRESS
+## Phase 4: Framework Validation ✅ COMPLETED (Flat Field)
 
 ### 4.1 Critical Fixes Applied
 
@@ -128,65 +128,89 @@ Document:
 
 **Fix 5: CPU Optimization** ✅
 - Changed default from 1 core to 10 cores (performance cores only)
-- ~1.7x speedup on M4 Pro/Max
-- Commit: dc0ccc9
+- Later reverted to max_cpu=1 due to PyEchelle multi-CPU bug (commit 9d61719)
+- Single CPU provides acceptable performance (~18s for flat field)
+- Commit: dc0ccc9 (optimization), 9d61719 (revert)
+
+**Fix 6: Single Fiber Mode** ✅ CRITICAL
+- Problem: Single fiber mode produced 0 photons
+- Root cause: All fibers shared same dark source object
+- Solution: Create individual `ConstantPhotonFlux` objects for each fiber
+- PyEchelle requires separate object instances per fiber
+- Commit: c48c4d2
 
 ### 4.2 Test Cases (Original Plan)
 
-**Test 1: Flat Field Simulations** ✅ COMPLETED
-- **Issue Found:** Flux unit mismatch (all zeros)
-- **Fixed:** Flux unit conversion implemented
-- **Result:** Simulations now produce valid data (404,726 non-zero pixels)
-- **Performance:** ~18s with 10 cores
+**Test 1: Flat Field - All Fiber Modes** ✅ COMPLETED
+- Band tested: R-band (9232x9216, 66 fibers)
+- Modes validated:
+  - ✅ All fibers: 57M non-zero pixels, proper Poisson stats
+  - ✅ Single fiber: 618k non-zero pixels (after Fix 6)
+  - ✅ Even/odd: Two files created with correct fiber separation
+  - ✅ Slit modes: first_slit (fibers 1-31), second_slit (fibers 35-66)
+- **Performance:** ~18s with max_cpu=1
+- **Parameters:** flux=100 ph/s/AA, exposure=10-50s
+- **See:** VALIDATION_REPORT.md for complete details
 
-**Test 2: Fabry-Perot Calibration** ⏸️ PENDING
-- Run legacy: `FP_code/pyechelle_test_ANDES_fp.py`
-- Run new: `andes-sim fabry-perot ...`
-- Compare outputs
+**Test 2: Fabry-Perot Calibration** ⏸️ DEFERRED
+- Issue: FP mode produces 0 photons despite correct CSV spectrum
+- FP CSV file exists and covers wavelength range (620-950nm for R-band)
+- Scaling factors tested up to 5e11 (100x default)
+- Requires separate investigation (PyEchelle CSV source API)
+- Not blocking flat-field production use
 
-**Test 3: Single Fiber Modes** ⏸️ PENDING
-- Legacy: Single fiber scripts with various parameters
-- New: Equivalent YAML configs
-- Ensure fiber selection logic matches
+**Test 3: Post-Processing** ⏸️ DEFERRED
+- Requires Fabry-Perot outputs
+- Will test after FP issues resolved
 
-**Test 4: Post-Processing** ⏸️ PENDING
-- Legacy: `PSF/Dkernel.py` and `PSF/sumIFU.py`
-- New: `andes-sim postprocess` commands
-- Compare combined outputs
-
-**Test 5: HDF Generation** ⏸️ DEFERRED (Non-critical, very slow)
-- Test on one band only (Y, J, or H)
+**Test 4: HDF Generation** ⏸️ DEFERRED (Non-critical, very slow)
+- Test on one band only if needed
 - Verify ZEMAX interface works correctly
 
-### 4.3 Validation Checklist
+### 4.3 Validation Checklist (Flat Field Mode)
 
 - [x] Framework runs without errors
-- [x] Output files created with correct dimensions
+- [x] Output files created with correct dimensions (9232x9216 for R-band)
 - [x] Non-zero data produced (proper Poisson statistics)
-- [x] Flux units handled correctly
-- [x] Performance acceptable (~18s for R-band flat field)
-- [x] Documentation is clear
-- [x] All bands accessible (U, B, V, R, IZ, Y, J, H)
-- [ ] Fabry-Perot mode tested
-- [ ] Single fiber modes tested
-- [ ] Post-processing tested
-- [ ] Error handling validated
-- [ ] Batch processing tested
+- [x] Flux units handled correctly (ph/s/AA)
+- [x] Performance acceptable (~18s for R-band with max_cpu=1)
+- [x] Documentation clear and updated
+- [x] R-band fully validated (other bands expected to work similarly)
+- [x] All fiber illumination modes tested (all, single, even/odd, slits)
+- [ ] Fabry-Perot mode - deferred (requires investigation)
+- [ ] Post-processing - deferred (needs FP outputs)
+- [ ] Error handling - not tested
+- [ ] Batch processing - not tested
 
 ### 4.4 Known Issues
 
-**Issue: Legacy Script Incompatibility**
+**Issue 1: PyEchelle Multi-CPU Bug** ⚠️ CRITICAL
+- PyEchelle 0.4.0 has bug in multi-CPU result aggregation
+- Error: `TypeError: 'int' object is not subscriptable` in `_simulate_multi_cpu`
+- Occurs at line 364: `ccd_results = [r[0] for r in results]`
+- **Workaround:** Default max_cpu=1 (commit 9d61719)
+- **Impact:** Single CPU provides acceptable performance (~18s)
+- **Status:** Workaround applied, may report to PyEchelle maintainers
+
+**Issue 2: Legacy Script Incompatibility**
 - Legacy scripts use PyEchelle <0.4.0 API
 - Cannot run with current PyEchelle 0.4.0
 - **Resolution:** Accept functional validation instead of numerical comparison
 - **Status:** Documented, accepted
 
-**Issue: Numba Threading Warnings**
+**Issue 3: Numba Threading Warnings**
 - Workqueue threading layer warnings
 - Semaphore cleanup warnings
 - **Impact:** Cosmetic only, no functional impact
 - **Resolution:** TBB not available for macOS ARM; warnings can be ignored
 - **Status:** Documented, accepted
+
+**Issue 4: Fabry-Perot CSV Source** ⏸️ INVESTIGATING
+- FP mode produces 0 photons despite correct CSV data
+- CSV file exists and covers wavelength range
+- Scaling factors tested extensively
+- Possible PyEchelle 0.4.0 CSV source API issue
+- **Status:** Requires separate investigation, not blocking flat-field use
 
 ---
 

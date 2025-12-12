@@ -156,20 +156,30 @@ class AndesSimulator:
         else:
             raise ValueError(f"Unknown source type: {self.config.source.type}")
         
-        # Create fiber source list
-        dark_source = ConstantPhotonFlux(0.0)
-        sources = [dark_source] * n_fibers
-        
+        # Create fiber source list - each fiber needs its own source object
+        # because PyEchelle may modify sources during simulation
+        sources = [ConstantPhotonFlux(0.0) for _ in range(n_fibers)]
+
         # Handle different fiber modes
         if self.config.fibers.mode == "even_odd":
             # Special handling for even/odd illumination
             # This will be handled by running multiple simulations
+            dark_source = ConstantPhotonFlux(0.0)
             return self._setup_even_odd_sources(base_source, dark_source, n_fibers)
         else:
-            # Standard illumination pattern
+            # Standard illumination pattern - create separate source object for each illuminated fiber
             for fiber_idx in illuminated_fibers:
                 if 1 <= fiber_idx <= n_fibers:
-                    sources[fiber_idx - 1] = base_source  # Convert to 0-based indexing
+                    # Create a new source object for each fiber to avoid PyEchelle issues
+                    if self.config.source.type == "constant":
+                        flux_value = self._convert_flux_units(
+                            self.config.source.flux,
+                            self.config.source.flux_unit
+                        )
+                        sources[fiber_idx - 1] = ConstantPhotonFlux(flux_value)
+                    else:
+                        # For CSV and FP sources, reuse base_source (they're read-only)
+                        sources[fiber_idx - 1] = base_source
         
         self.sources = sources
         return sources
