@@ -246,6 +246,71 @@ def get_hdf_model_path(band: str, model_type: str = 'default', project_root: Pat
     return project_root / 'HDF' / f'{model_name}.hdf'
 
 
+def infer_band_from_hdf(hdf_path: Path) -> str:
+    """
+    Infer spectral band from HDF file by reading wavelength coverage.
+
+    Parameters
+    ----------
+    hdf_path : Path
+        Path to HDF model file
+
+    Returns
+    -------
+    str
+        Inferred band name
+
+    Raises
+    ------
+    ValueError
+        If band cannot be determined from wavelength range
+    """
+    import h5py
+
+    with h5py.File(hdf_path, 'r') as f:
+        ccd = f['CCD_1']
+        fiber_key = next(k for k in ccd.keys() if k.startswith('fiber_'))
+        fiber = ccd[fiber_key]
+
+        # Collect wavelengths from PSF entries
+        wavelengths = []
+        for key in fiber.keys():
+            if key.startswith('psf_order'):
+                psf_grp = fiber[key]
+                for wl_key in psf_grp.keys():
+                    if wl_key.startswith('wavelength_'):
+                        # Parse wavelength from key name (in micrometers)
+                        wl = float(wl_key.replace('wavelength_', ''))
+                        wavelengths.append(wl)
+                        break  # One sample per order is enough
+
+    if not wavelengths:
+        raise ValueError(f"No wavelength data found in {hdf_path}")
+
+    # Wavelengths in micrometers, convert to nm
+    wl_min = min(wavelengths) * 1000
+    wl_max = max(wavelengths) * 1000
+    wl_center = (wl_min + wl_max) / 2
+
+    # Band wavelength ranges in nm (center wavelength must fall within)
+    band_ranges = {
+        'U': (310, 390),
+        'B': (390, 490),
+        'V': (490, 620),
+        'R': (620, 800),
+        'IZ': (800, 1000),
+        'Y': (1000, 1150),
+        'J': (1150, 1350),
+        'H': (1450, 1800),
+    }
+
+    for band, (low, high) in band_ranges.items():
+        if low <= wl_center <= high:
+            return band
+
+    raise ValueError(f"Cannot infer band from wavelength range {wl_min:.0f}-{wl_max:.0f}nm")
+
+
 def get_sed_path(band: str, project_root: Path = None) -> Path:
     """
     Get the path to the Fabry-Perot SED file for a band.

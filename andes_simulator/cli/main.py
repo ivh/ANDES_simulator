@@ -9,7 +9,6 @@ import sys
 import logging
 from pathlib import Path
 from typing import Optional, List
-
 try:
     import click
 except ImportError:
@@ -25,6 +24,59 @@ from .utils import (
 
 # Lightweight band list for CLI validation (avoids importing instruments module)
 ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
+
+SUBSLIT_CHOICES = ['all', 'single', 'even_odd', 'slitA', 'slitB', 'cal',
+                   'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']
+
+
+def common_options(f):
+    """Common options for simulation commands."""
+    f = click.option('--dry-run', is_flag=True, help='Show what would be done without running')(f)
+    f = click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')(f)
+    f = click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')(f)
+    f = click.option('--hdf', type=click.Path(exists=True, path_type=Path),
+                     help='HDF model file (infers band if --band not given)')(f)
+    return f
+
+
+def resolve_band_and_hdf(band: Optional[str], hdf: Optional[Path], project_root: Optional[Path]) -> tuple:
+    """Resolve band and HDF model path, inferring band from HDF if needed."""
+    from ..core.instruments import infer_band_from_hdf, get_hdf_model_path
+
+    if hdf:
+        inferred_band = infer_band_from_hdf(hdf)
+        if band and band != inferred_band:
+            raise click.UsageError(
+                f"--band {band} conflicts with HDF file (contains {inferred_band} data)")
+        return inferred_band, str(hdf)
+
+    if not band:
+        raise click.UsageError("Either --band or --hdf is required")
+
+    # Use default HDF for band
+    if project_root is None:
+        project_root = Path(__file__).parent.parent.parent
+    default_hdf = get_hdf_model_path(band, 'default', project_root)
+    return band, str(default_hdf) if default_hdf.exists() else None
+
+
+def subslit_options(f):
+    """Subslit/fiber selection options."""
+    f = click.option('--fiber', type=int, help='Specific fiber number (for single subslit)')(f)
+    f = click.option('--subslit', default='all', type=click.Choice(SUBSLIT_CHOICES),
+                     help='Fiber selection (ifu/ringN only for YJH bands)')(f)
+    return f
+
+
+def flux_options(default_scaling=1e5):
+    """Flux/scaling options with configurable default scaling."""
+    def decorator(f):
+        f = click.option('--scaling', type=float, default=default_scaling,
+                         help='Base scaling factor')(f)
+        f = click.option('--flux', default=1.0, type=float,
+                         help='Flux multiplier (multiplied with scaling)')(f)
+        return f
+    return decorator
 
 
 @click.group()
@@ -43,88 +95,74 @@ def cli(ctx, verbose, project_root):
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(ANDES_BANDS), 
-              help='Spectral band')
-@click.option('--mode', default='all',
-              type=click.Choice(['all', 'single', 'even_odd', 'slitA', 'slitB', 'cal', 'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']),
-              help='Fiber illumination mode (ifu/ringN only for YJH bands)')
-@click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
-@click.option('--flux', default=1.0, type=float, 
-              help='Flux multiplier (multiplied with scaling)')
-@click.option('--scaling', type=float, default=2e5,
-              help='Base scaling factor (default calibrated for flux=1)')
-@click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')
-@click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
-@click.option('--config', type=click.Path(exists=True, path_type=Path), 
+@click.option('--band', type=click.Choice(ANDES_BANDS), help='Spectral band (inferred from --hdf-model if not given)')
+@subslit_options
+@flux_options(default_scaling=2e5)
+@common_options
+@click.option('--config', type=click.Path(exists=True, path_type=Path),
               help='YAML configuration file')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without running')
 @click.pass_context
-def flat_field(ctx, band, mode, fiber, flux, scaling, exposure, output_dir, config, dry_run):
+def flat_field(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, config, dry_run):
     """Generate flat field calibration frames."""
     from ..core.config import SimulationConfig
 
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
+        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'])
         sim_config = build_config_from_options(
             simulation_type="flat_field",
             band=band,
             exposure=exposure,
             source_type="constant",
-            fiber_mode=mode,
+            fiber_mode=subslit,
             output_dir=output_dir,
             fiber=fiber,
             flux=flux,
             scaling=scaling,
-            flux_unit="ph/s/AA"
+            flux_unit="ph/s/AA",
+            hdf=hdf_path
         )
-    
+
     run_simulation_command(
         sim_config,
         dry_run,
         lambda: format_dry_run_output(sim_config),
-        f"Flat field simulation completed ({mode} mode)"
+        f"Flat field simulation completed ({subslit} subslit)"
     )
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
-              help='Spectral band')
-@click.option('--mode', default='all',
-              type=click.Choice(['all', 'single']),
-              help='Fiber illumination mode')
-@click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
+@click.option('--band', type=click.Choice(ANDES_BANDS), help='Spectral band (inferred from --hdf-model if not given)')
+@subslit_options
+@flux_options(default_scaling=1e5)
+@common_options
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
-@click.option('--flux', default=1.0, type=float,
-              help='FP brightness level (multiplied with scaling, ~1000 gives good S/N)')
-@click.option('--scaling', type=float, default=1e5,
-              help='Base scaling factor (default calibrated for flux=1)')
-@click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')
-@click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
 @click.option('--config', type=click.Path(exists=True, path_type=Path),
               help='YAML configuration file')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without running')
 @click.pass_context
-def fabry_perot(ctx, band, mode, fiber, velocity_shift, flux, scaling, exposure, output_dir, config, dry_run):
+def fabry_perot(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, velocity_shift, config, dry_run):
     """Generate Fabry-Perot wavelength calibration frames."""
     from ..core.config import SimulationConfig
 
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
+        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'])
         sim_config = build_config_from_options(
             simulation_type="fabry_perot",
             band=band,
             exposure=exposure,
             source_type="fabry_perot",
-            fiber_mode=mode,
+            fiber_mode=subslit,
             output_dir=output_dir,
             fiber=fiber,
             flux=flux,
             scaling=scaling,
-            velocity_shift=velocity_shift
+            velocity_shift=velocity_shift,
+            hdf=hdf_path
         )
-    
+
     run_simulation_command(
         sim_config,
         dry_run,
@@ -134,38 +172,29 @@ def fabry_perot(ctx, band, mode, fiber, velocity_shift, flux, scaling, exposure,
 
 
 @cli.command()
-@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
-              help='Spectral band')
-@click.option('--mode', default='all',
-              type=click.Choice(['all', 'single']),
-              help='Fiber illumination mode')
-@click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
-@click.option('--flux', default=1.0, type=float,
-              help='LFC line brightness (multiplied with scaling)')
-@click.option('--scaling', type=float, default=1e5,
-              help='Base scaling factor for flux per line (ph/s)')
-@click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')
-@click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without running')
+@click.option('--band', type=click.Choice(ANDES_BANDS), help='Spectral band (inferred from --hdf-model if not given)')
+@subslit_options
+@flux_options(default_scaling=1e5)
+@common_options
 @click.pass_context
-def lfc(ctx, band, mode, fiber, flux, scaling, exposure, output_dir, dry_run):
+def lfc(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, dry_run):
     """Generate Laser Frequency Comb wavelength calibration frames.
 
     LFC produces unresolved emission lines equidistant in velocity,
     with approximately 100 lines per spectral order.
     """
-    from ..core.config import SimulationConfig
-
+    band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'])
     sim_config = build_config_from_options(
         simulation_type="lfc",
         band=band,
         exposure=exposure,
         source_type="lfc",
-        fiber_mode=mode,
+        fiber_mode=subslit,
         output_dir=output_dir,
         fiber=fiber,
         flux=flux,
-        scaling=scaling
+        scaling=scaling,
+        hdf=hdf_path
     )
 
     run_simulation_command(

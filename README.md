@@ -92,6 +92,9 @@ uv run andes-sim list-bands
 # Dry run (show what would be done)
 uv run andes-sim flat-field --band R --mode single --fiber 21 --dry-run
 
+# Use custom HDF model (band inferred from wavelength content)
+uv run andes-sim flat-field --hdf HDF/ANDES_full_F18A33_win_jmr_MC_T0019_Rband_p0.hdf --dry-run
+
 # Run from YAML configuration file
 uv run andes-sim run-config configs/examples/flat_field_single_fiber.yaml
 ```

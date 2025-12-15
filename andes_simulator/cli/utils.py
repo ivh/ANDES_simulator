@@ -70,7 +70,8 @@ def build_config_from_options(
     scaling: Optional[float] = None,
     velocity_shift: Optional[float] = None,
     spectrum_path: Optional[Path] = None,
-    flux_unit: str = "ph/s/AA"
+    flux_unit: str = "ph/s/AA",
+    hdf: Optional[str] = None
 ):
     """
     Build a SimulationConfig from CLI options.
@@ -141,6 +142,7 @@ def build_config_from_options(
         band=band,
         exposure_time=exposure,
         velocity_shift=velocity_shift,
+        hdf_model=hdf,
         source=SourceConfig(**source_kwargs),
         fibers=FiberConfig(mode=fiber_mode, fibers=fibers),
         output=OutputConfig(directory=output_directory)
@@ -161,6 +163,8 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
     click.echo("Dry run - would execute:")
     click.echo(f"  Type: {config.simulation_type}")
     click.echo(f"  Band: {config.band}")
+    if config.hdf_model:
+        click.echo(f"  HDF model: {config.hdf_model}")
     click.echo(f"  Mode: {config.fibers.mode}")
     click.echo(f"  Exposure: {config.exposure_time}s")
     

@@ -8,15 +8,19 @@
 
 ```bash
 # Flat field calibrations
-uv run andes-sim flat-field --band R --mode all --output-dir ../R/
-uv run andes-sim flat-field --band R --mode single --fiber 21 --output-dir ../R/
-uv run andes-sim flat-field --band R --mode even_odd --output-dir ../R/
+uv run andes-sim flat-field --band R --subslit all --output-dir ../R/
+uv run andes-sim flat-field --band R --subslit single --fiber 21 --output-dir ../R/
+uv run andes-sim flat-field --band R --subslit slitA --output-dir ../R/
 
 # Fabry-Perot wavelength calibration
-uv run andes-sim fabry-perot --band R --mode single --fiber 21 --flux 100 --output-dir ../R/
+uv run andes-sim fabry-perot --band R --subslit single --fiber 21 --flux 100 --output-dir ../R/
 
 # LFC (Laser Frequency Comb) calibration
-uv run andes-sim lfc --band R --mode single --fiber 21 --scaling 1e5 --output-dir ../R/
+uv run andes-sim lfc --band R --subslit single --fiber 21 --scaling 1e5 --output-dir ../R/
+
+# YJH IFU modes
+uv run andes-sim flat-field --band Y --subslit ifu --output-dir ../Y/
+uv run andes-sim flat-field --band Y --subslit ring2 --output-dir ../Y/
 
 # Stellar spectrum
 uv run andes-sim spectrum --band R --spectrum SED/star.csv --fiber 21 --output-dir ../R/
@@ -36,7 +40,11 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 
 ### Key Options
 
-- `--mode`: `all`, `single`, `even_odd`, `first_slit`, `second_slit`
+- `--hdf`: Custom HDF model file (infers band from wavelength content)
+- `--subslit`: Fiber selection for simulations
+  - All bands: `all`, `single`, `even_odd`, `slitA`, `slitB`, `cal`
+  - YJH only: `ifu`, `ring0`, `ring1`, `ring2`, `ring3`, `ring4`
+- `--mode`: Combination mode for post-processing (`all`, `even_odd`, `slits`, `custom`)
 - `--output-dir`: Use absolute paths for post-processing tools
 - `--dry-run`: Preview without executing
 
