@@ -7,14 +7,17 @@ A unified framework for running ANDES E2E spectrograph simulations including fla
 ## Quick Start
 
 ```bash
-# Run a simple flat field simulation
-andes-sim simulate configs/examples/flat_field_single_fiber.yaml
-
 # List available spectral bands
-andes-sim list-bands
+uv run andes-sim list-bands
 
-# Generate Fabry-Perot calibration
-andes-sim fabry-perot --band Y --mode all
+# Generate flat field calibration (R-band, single fiber)
+uv run andes-sim flat-field --band R --mode single --fiber 21 --output-dir ../R/
+
+# Generate Fabry-Perot wavelength calibration
+uv run andes-sim fabry-perot --band R --mode single --fiber 21 --output-dir ../R/
+
+# Generate LFC (Laser Frequency Comb) calibration
+uv run andes-sim lfc --band R --mode single --fiber 21 --output-dir ../R/
 ```
 
 ## Features
@@ -50,21 +53,47 @@ pip install -e ".[all]"  # With all optional dependencies
 
 ## Command Line Interface
 
+### Calibration Simulations
+
 ```bash
-# Generate flat field calibration
-andes-sim flat-field --band Y --mode single --fiber 1
+# Flat field - various modes
+uv run andes-sim flat-field --band R --mode all --output-dir ../R/
+uv run andes-sim flat-field --band R --mode single --fiber 21 --output-dir ../R/
+uv run andes-sim flat-field --band R --mode even_odd --output-dir ../R/
 
-# Generate Fabry-Perot calibration
-andes-sim fabry-perot --band Y --mode all
+# Fabry-Perot wavelength calibration
+uv run andes-sim fabry-perot --band R --mode single --fiber 21 --flux 100 --output-dir ../R/
 
-# Run from configuration file
-andes-sim simulate configs/examples/flat_field_all_fibers.yaml
+# LFC (Laser Frequency Comb) calibration
+uv run andes-sim lfc --band R --mode single --fiber 21 --scaling 1e5 --output-dir ../R/
 
-# Process with PSF convolution
-andes-sim psf-process --band Y --input-pattern "Y_FP_fiber{fib:02d}_*.fits" --fwhm 3.2
+# Stellar spectrum observation
+uv run andes-sim spectrum --band R --spectrum SED/star.csv --fiber 21 --output-dir ../R/
+```
 
-# Combine fiber outputs
-andes-sim combine --band Y --input-pattern "Y_FP_fiber{fib:02d}_*.fits" --mode all
+### Post-Processing
+
+```bash
+# Combine individual fiber outputs into single frame
+uv run andes-sim combine --band R --input-pattern "R_FP_fiber{fib:02d}_30s.fits" \
+    --mode all --output-dir /path/to/R/ --output R_combined.fits
+
+# PSF convolution
+uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fits" \
+    --fwhm 3.2 --output-dir ../R/
+```
+
+### Utilities
+
+```bash
+# List available bands
+uv run andes-sim list-bands
+
+# Dry run (show what would be done)
+uv run andes-sim flat-field --band R --mode single --fiber 21 --dry-run
+
+# Run from YAML configuration file
+uv run andes-sim run-config configs/examples/flat_field_single_fiber.yaml
 ```
 
 ## Python API
@@ -99,6 +128,11 @@ results = runner.quick_fiber_sweep('Y', 'fabry_perot')
 - All fiber illumination
 - Single fiber with velocity shifts
 - Thermal variation studies
+
+### LFC (Laser Frequency Comb) Calibrations
+- Unresolved emission lines equidistant in velocity
+- ~100-150 lines per spectral order
+- Configurable flux per line
 
 ### Stellar Spectrum Observations
 - Custom CSV spectrum inputs
@@ -197,6 +231,7 @@ The framework replaces all original E2E scripts with a unified interface:
 |---------------|-------------|
 | `FF_code/pyechelle_test_ANDES_ff_single_fiber.py` | `andes-sim flat-field --mode single` |
 | `FP_code/pyechelle_test_ANDES_fp.py` | `andes-sim fabry-perot --mode all` |
+| (new) | `andes-sim lfc` |
 | `PSF/Dkernel.py` | `andes-sim psf-process` |
 | `PSF/sumIFU.py` | `andes-sim combine` |
 
@@ -270,4 +305,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-*Last updated: 2025-12-12*
+*Last updated: 2025-12-15*
