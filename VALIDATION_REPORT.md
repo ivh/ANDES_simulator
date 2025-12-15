@@ -219,7 +219,7 @@ uv run andes-sim lfc --band R --mode single --fiber 21 --scaling 1e5 --output-di
 - [x] Slit modes tested ✅ (first_slit, second_slit)
 - [x] Fabry-Perot mode ✅ (R-band validated, other bands expected to work)
 - [x] LFC mode ✅ (R-band validated, new feature)
-- [ ] Post-processing - deferred (can now test with FP/LFC outputs)
+- [x] Post-processing combine ✅ (R-band validated, bugs fixed)
 
 ### Code Quality
 - [x] Bug fix committed (single fiber mode)

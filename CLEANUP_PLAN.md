@@ -190,7 +190,7 @@ Document:
 - [x] All fiber illumination modes tested (all, single, even/odd, slits)
 - [x] Fabry-Perot mode - validated
 - [x] LFC mode - validated (new feature)
-- [ ] Post-processing - deferred (can now test with FP/LFC outputs)
+- [x] Post-processing combine - validated and fixed
 - [ ] Error handling - not tested
 - [ ] Batch processing - not tested
 
