@@ -1,8 +1,8 @@
 # ANDES E2E src Directory Cleanup Plan
 
-**Status:** Phase 4 completed (Framework Validation - Flat Field)
+**Status:** Phase 4 completed (Framework Validation)
 **Date Started:** 2025-12-11
-**Last Updated:** 2025-12-12
+**Last Updated:** 2025-12-15
 
 ---
 
@@ -99,7 +99,7 @@ Document:
 
 ---
 
-## Phase 4: Framework Validation ✅ COMPLETED (Flat Field)
+## Phase 4: Framework Validation ✅ COMPLETED
 
 ### 4.1 Critical Fixes Applied
 
@@ -321,8 +321,8 @@ Keep HDF/ and SED/ as-is per user preference.
 1. ✅ **Phase 1** - Safe housekeeping (no risk)
 2. ✅ **Phase 2** - Archive legacy scripts (reversible via git)
 3. ✅ **Phase 3** - Create documentation
-4. ⏳ **Phase 4** - Validate framework (IN PROGRESS)
-5. ⏸️ **Phase 5** - Final polish (after validation complete)
+4. ✅ **Phase 4** - Validate framework (COMPLETED)
+5. ⏸️ **Phase 5** - Final polish (optional)
 6. ⏸️ **Phase 6** - Optional enhancements (future)
 
 ---
@@ -351,15 +351,19 @@ Keep HDF/ and SED/ as-is per user preference.
 - [x] Legacy scripts remain accessible in archive
 - [x] Documentation guides users to new framework
 - [x] Repository is clean and professional
-- [x] Critical bugs fixed (flux units, API compatibility)
-- [ ] Comprehensive validation complete (partial)
+- [x] Critical bugs fixed (flux units, API compatibility, combine tool)
+- [x] Comprehensive validation complete (FF, FP, LFC, combine)
 
 ---
 
 ## Git Commit History
 
 ```
+0642324 Update docs with post-processing validation results
+a5200ba Fix combine command path resolution and array shape
+8e0eac2 Update documentation with LFC validation results
 74877a5 Add LFC (Laser Frequency Comb) calibration command
+88ff99d Fix even/odd fiber illumination bug in flat-field simulations
 2ceb04c Update example config to use correct flux units
 dc0ccc9 Optimize CPU usage: use 10 performance cores by default
 d369f9e Update validation report with flux unit fix results
@@ -377,23 +381,22 @@ ccbd99c Phase 1: Clean up temporary files and add .gitignore
 
 ## Next Steps
 
-1. **Complete Phase 4 validation** (in progress)
-   - Test Fabry-Perot simulations
-   - Test single fiber modes
-   - Test post-processing tools
-   - Document any additional issues
+1. ✅ **Phase 4 validation** - COMPLETED
+   - ✅ Flat field simulations (all modes)
+   - ✅ Fabry-Perot simulations
+   - ✅ LFC simulations (new feature)
+   - ✅ Post-processing combine tool
 
-2. **Update VALIDATION_REPORT.md** with complete findings
+2. **Push to remote** when ready to share
 
-3. **Phase 5: Final polish** (when validation complete)
-   - Any remaining documentation updates
+3. **Optional future work**:
+   - Test other bands (Y, J, H, B, V, IZ, U)
+   - PSF processing tool validation
+   - HDF generation testing
    - Performance benchmarking
-   - User migration guide if needed
-
-4. **Push to remote** when ready to share
 
 ---
 
 *Plan created: 2025-12-11*
-*Currently in Phase 4 (Framework Validation)*
-*Framework Status: ✅ Core functionality working, validation in progress*
+*Phase 4 completed: 2025-12-15*
+*Framework Status: ✅ Production ready (FF, FP, LFC, combine validated)*
