@@ -160,6 +160,14 @@ Document:
 - ✅ Performance: 2.8s for single fiber
 - ✅ Added user-friendly `--flux` parameter
 
+**Test 2b: LFC (Laser Frequency Comb) Calibration** ✅ COMPLETED (NEW)
+- ✅ New command: `andes-sim lfc`
+- ✅ Emission lines equidistant in velocity (constant delta-lambda/lambda)
+- ✅ ~100-150 lines per spectral order
+- ✅ Uses PyEchelle list_like=True for discrete lines
+- ✅ R-band validated: 2775 lines, proper output file
+- ✅ Commit: 74877a5
+
 **Test 3: Post-Processing** ⏸️ DEFERRED
 - Requires Fabry-Perot outputs
 - Will test after FP issues resolved
@@ -178,8 +186,9 @@ Document:
 - [x] Documentation clear and updated
 - [x] R-band fully validated (other bands expected to work similarly)
 - [x] All fiber illumination modes tested (all, single, even/odd, slits)
-- [ ] Fabry-Perot mode - deferred (requires investigation)
-- [ ] Post-processing - deferred (needs FP outputs)
+- [x] Fabry-Perot mode - validated
+- [x] LFC mode - validated (new feature)
+- [ ] Post-processing - deferred (can now test with FP/LFC outputs)
 - [ ] Error handling - not tested
 - [ ] Batch processing - not tested
 
@@ -348,6 +357,7 @@ Keep HDF/ and SED/ as-is per user preference.
 ## Git Commit History
 
 ```
+74877a5 Add LFC (Laser Frequency Comb) calibration command
 2ceb04c Update example config to use correct flux units
 dc0ccc9 Optimize CPU usage: use 10 performance cores by default
 d369f9e Update validation report with flux unit fix results
