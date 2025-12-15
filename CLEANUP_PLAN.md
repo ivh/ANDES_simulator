@@ -168,9 +168,11 @@ Document:
 - ✅ R-band validated: 2775 lines, proper output file
 - ✅ Commit: 74877a5
 
-**Test 3: Post-Processing** ⏸️ DEFERRED
-- Requires Fabry-Perot outputs
-- Will test after FP issues resolved
+**Test 3: Post-Processing** ✅ COMPLETED
+- ✅ `combine` command tested and working
+- ✅ Fixed path resolution bug (input_dir parameter)
+- ✅ Fixed array shape mismatch (Y,X vs X,Y)
+- ✅ R-band validated: 60M non-zero pixels combined
 
 **Test 4: HDF Generation** ⏸️ DEFERRED (Non-critical, very slow)
 - Test on one band only if needed

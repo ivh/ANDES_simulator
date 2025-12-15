@@ -345,8 +345,8 @@ def combine(ctx, band, input_pattern, mode, fibers, output, output_dir, report, 
             click.echo(f"  Fibers: {fibers}")
         return
     
-    # Create fiber combiner
-    combiner = FiberCombiner(band, ctx.obj['project_root'])
+    # Create fiber combiner (use output_dir as input_dir for finding files)
+    combiner = FiberCombiner(band, ctx.obj['project_root'], input_dir=output_dir)
     
     try:
         if mode == 'all':

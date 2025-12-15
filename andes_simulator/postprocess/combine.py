@@ -24,30 +24,41 @@ class FiberCombiner:
     criteria and weighting schemes for integrated detector analysis.
     """
     
-    def __init__(self, 
+    def __init__(self,
                  band: str,
-                 project_root: Optional[Path] = None):
+                 project_root: Optional[Path] = None,
+                 input_dir: Optional[Path] = None):
         """
         Initialize fiber combiner.
-        
+
         Parameters
         ----------
         band : str
             Spectral band for fiber and detector configuration
         project_root : Path, optional
             Project root directory
+        input_dir : Path, optional
+            Directory to search for input files (defaults to band output dir)
         """
         self.band = band
         self.instrument_config = get_instrument_config(band)
-        
+
         if project_root is None:
             self.project_root = Path(__file__).parent.parent.parent
         else:
             self.project_root = project_root
-        
+
+        # Input directory for finding fiber files
+        if input_dir is None:
+            self.input_dir = self.project_root.parent / band
+        else:
+            self.input_dir = Path(input_dir)
+
         # Get band-specific parameters
         self.n_fibers = self.instrument_config['n_fibers']
-        self.detector_size = self.instrument_config['detector_size']
+        # Config stores (X, Y) but numpy/FITS uses (Y, X) - swap for array operations
+        config_size = self.instrument_config['detector_size']
+        self.detector_size = (config_size[1], config_size[0])
         self.skip_fibers = self.instrument_config.get('skip_fibers', [])
     
     def load_fiber_data(self, 
@@ -74,7 +85,7 @@ class FiberCombiner:
         # Create search pattern
         pattern = input_pattern.format(fib=fiber_num)
         if not Path(pattern).is_absolute():
-            pattern = str(self.project_root.parent / pattern)
+            pattern = str(self.input_dir / pattern)
         
         matching_files = glob(pattern)
         
