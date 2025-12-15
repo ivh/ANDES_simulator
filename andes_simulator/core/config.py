@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 from dataclasses import dataclass, field
 
-from .instruments import get_instrument_config, get_all_bands
+from .instruments import get_instrument_config, get_all_bands, FIBER_CONFIG
 
 
 @dataclass
@@ -100,7 +100,8 @@ class SimulationConfig:
             raise ValueError(f"Invalid simulation_type '{self.simulation_type}'. Available: {valid_sim_types}")
         
         # Validate fiber mode
-        valid_fiber_modes = ["all", "single", "even_odd", "first_slit", "second_slit", "custom"]
+        valid_fiber_modes = ["all", "single", "even_odd", "slitA", "slitB", "cal",
+                            "ifu", "ring0", "ring1", "ring2", "ring3", "ring4", "custom"]
         if self.fibers.mode not in valid_fiber_modes:
             raise ValueError(f"Invalid fiber mode '{self.fibers.mode}'. Available: {valid_fiber_modes}")
         
@@ -166,16 +167,28 @@ class SimulationConfig:
             # Return all fibers, but the simulator will handle even/odd logic
             fibers = list(range(1, n_fibers + 1))
             
-        elif self.fibers.mode == "first_slit":
+        elif self.fibers.mode in ("slitA", "slitB", "cal"):
+            # Slit modes: use appropriate config based on band
             if self.band in ['Y', 'J', 'H']:
-                raise ValueError("Slit modes not applicable to YJH bands")
-            fibers = list(range(1, 32))  # First 31 fibers
-            
-        elif self.fibers.mode == "second_slit":
-            if self.band in ['Y', 'J', 'H']:
-                raise ValueError("Slit modes not applicable to YJH bands")
-            fibers = list(range(35, n_fibers + 1))  # Skip cal fibers 32-34
-            
+                fiber_cfg = FIBER_CONFIG['YJH_SL']['slits']
+            else:
+                fiber_cfg = FIBER_CONFIG['UBVRIZ']['slits']
+            key = 'cal_fibers' if self.fibers.mode == 'cal' else self.fibers.mode
+            fibers = list(fiber_cfg[key])
+
+        elif self.fibers.mode in ("ifu", "ring0", "ring1", "ring2", "ring3", "ring4"):
+            # IFU modes: only for YJH bands
+            if self.band not in ['Y', 'J', 'H']:
+                raise ValueError("IFU/ring modes only applicable to YJH bands")
+            fiber_cfg = FIBER_CONFIG['YJH_IFU']['slits']
+            if self.fibers.mode == "ifu":
+                # All IFU fibers (all rings combined)
+                fibers = []
+                for key in ('ring0', 'ring1', 'ring2', 'ring3', 'ring4'):
+                    fibers.extend(fiber_cfg[key])
+            else:
+                fibers = list(fiber_cfg[self.fibers.mode])
+
         elif self.fibers.mode == "custom":
             if isinstance(self.fibers.fibers, list):
                 fibers = self.fibers.fibers

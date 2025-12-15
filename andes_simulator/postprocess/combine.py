@@ -221,18 +221,18 @@ class FiberCombiner:
         
         # Get fiber configuration for optical bands
         fiber_config = self.instrument_config['fiber_config']
-        pseudo_slits = fiber_config.get('pseudo_slits', {})
-        
+        slits = fiber_config.get('slits', {})
+
         results = {}
-        
-        if 'first' in pseudo_slits:
-            results['first_slit'] = self.combine_fiber_subset(pseudo_slits['first'], input_pattern)
-        
-        if 'second' in pseudo_slits:
-            results['second_slit'] = self.combine_fiber_subset(pseudo_slits['second'], input_pattern)
-        
-        if 'cal_fibers' in pseudo_slits:
-            results['calibration'] = self.combine_fiber_subset(pseudo_slits['cal_fibers'], input_pattern)
+
+        if 'slitA' in slits:
+            results['first_slit'] = self.combine_fiber_subset(slits['slitA'], input_pattern)
+
+        if 'slitB' in slits:
+            results['second_slit'] = self.combine_fiber_subset(slits['slitB'], input_pattern)
+
+        if 'cal_fibers' in slits:
+            results['calibration'] = self.combine_fiber_subset(slits['cal_fibers'], input_pattern)
         
         return results
     

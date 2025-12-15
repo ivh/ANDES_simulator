@@ -132,19 +132,33 @@ TELESCOPE = {
 
 # Standard fiber sizes and configurations
 FIBER_CONFIG = {
-    'YJH': {
-        'fiber_size': 474,  # micrometers
-        'slit_orientation': 'vertical',
-        'n_science_fibers': 75
+    'UBVRIZ': {
+        'n_fibers': 66,
+        'slits': {
+            'slitA': list(range(1, 32)),
+            'slitB': list(range(35, 66)),
+            'cal_fibers': [33, 34]
+        }
     },
-    'optical': {
-        'fiber_size': 474,  # micrometers  
-        'slit_orientation': 'vertical',
-        'n_science_fibers': 66,
-        'pseudo_slits': {
-            'first': list(range(1, 32)),   # fibers 1-31
-            'second': list(range(35, 66)), # fibers 35-65 (skipping cal fibers)
-            'cal_fibers': [32, 33, 34]     # calibration fibers
+    'YJH_SL': {
+        'fiber_size': 474,  # micrometers
+        'n_fibers': 75,
+        'slits': {
+            'slitA': list(range(4, 35)),
+            'slitB': list(range(42, 73)),
+            'cal_fibers': [1,37,38,39,75]
+        }
+    },
+    'YJH_IFU': {
+        'fiber_size': 474,  # micrometers
+        'n_fibers': 75,
+        'slits': {
+            'ring0': [3],
+            'ring1': [6,8,10,12,14,16],
+            'ring2': list(range(18, 18+12)),
+            'ring3': list(range(31, 31+18)),
+            'ring4': list(range(50, 50+24)),
+            'cal_fibers': [1,75]
         }
     }
 }
@@ -172,9 +186,9 @@ def get_instrument_config(band: str) -> Dict[str, Any]:
     
     # Add appropriate fiber configuration
     if band in ['Y', 'J', 'H']:
-        config['fiber_config'] = FIBER_CONFIG['YJH'].copy()
+        config['fiber_config'] = FIBER_CONFIG['YJH_SL'].copy()
     else:
-        config['fiber_config'] = FIBER_CONFIG['optical'].copy()
+        config['fiber_config'] = FIBER_CONFIG['UBVRIZ'].copy()
     
     return config
 

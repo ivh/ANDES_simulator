@@ -45,9 +45,9 @@ def cli(ctx, verbose, project_root):
 @cli.command()
 @click.option('--band', required=True, type=click.Choice(ANDES_BANDS), 
               help='Spectral band')
-@click.option('--mode', default='all', 
-              type=click.Choice(['all', 'single', 'even_odd', 'first_slit', 'second_slit', 'calib']),
-              help='Fiber illumination mode')
+@click.option('--mode', default='all',
+              type=click.Choice(['all', 'single', 'even_odd', 'slitA', 'slitB', 'cal', 'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']),
+              help='Fiber illumination mode (ifu/ringN only for YJH bands)')
 @click.option('--fiber', type=int, help='Specific fiber number (for single mode)')
 @click.option('--flux', default=1.0, type=float, 
               help='Flux multiplier (multiplied with scaling)')
