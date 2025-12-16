@@ -68,11 +68,17 @@ class AndesSimulator:
         """Set up the pyechelle simulator with instrument configuration."""
         # Get HDF model path
         hdf_model = self.config.hdf_model or 'default'
-        hdf_path = get_hdf_model_path(
-            self.config.band, 
-            hdf_model, 
-            self.project_root
-        )
+        if hdf_model != 'default' and (hdf_model.endswith('.hdf') or '/' in hdf_model):
+            # Already a full path
+            hdf_path = Path(hdf_model)
+            if not hdf_path.is_absolute():
+                hdf_path = self.project_root / hdf_path
+        else:
+            hdf_path = get_hdf_model_path(
+                self.config.band,
+                hdf_model,
+                self.project_root
+            )
         
         if not hdf_path.exists():
             raise FileNotFoundError(f"HDF model not found: {hdf_path}")
@@ -124,19 +130,25 @@ class AndesSimulator:
         
         # Handle even/odd mode specially
         if self.config.fibers.mode == "even_odd":
-            return self.source_factory.create_even_odd_sources(
+            sources = self.source_factory.create_even_odd_sources(
                 self.config.source,
                 n_fibers,
-                self.config.band
+                self.config.band,
+                wl_min=self.config.wl_min,
+                wl_max=self.config.wl_max
             )
+            return sources
         
         # Standard illumination pattern
         self.sources = self.source_factory.create_fiber_sources(
             self.config.source,
             n_fibers,
             illuminated_fibers,
-            self.config.band
+            self.config.band,
+            wl_min=self.config.wl_min,
+            wl_max=self.config.wl_max
         )
+
         return self.sources
     
     def run_simulation(self, output_path: Optional[Path] = None) -> Any:
@@ -350,7 +362,9 @@ class AndesSimulator:
                 self.config.source,
                 n_fibers,
                 [fiber_num],
-                self.config.band
+                self.config.band,
+                wl_min=self.config.wl_min,
+                wl_max=self.config.wl_max
             )
             self.simulator.set_sources(sources)
             

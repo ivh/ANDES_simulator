@@ -72,6 +72,8 @@ class SimulationConfig:
     # Special features
     velocity_shift: Optional[float] = None  # m/s for Doppler shifts
     thermal_model: Optional[str] = None     # For thermal variations
+    wl_min: Optional[float] = None          # Minimum wavelength in nm
+    wl_max: Optional[float] = None          # Maximum wavelength in nm
     
     # Post-processing
     psf: PSFConfig = field(default_factory=PSFConfig)
@@ -238,36 +240,61 @@ class SimulationConfig:
             filename_parts['suffix'] = suffix
         
         # Create filename based on simulation type
+        wl_suffix = self._format_wavelength_suffix()
         if self.simulation_type == "flat_field":
             if self.fibers.mode == "single" and fiber_num is not None:
-                filename = f"{self.band}_FF_fiber{fiber_num:02d}_{int(self.exposure_time)}s.fits"
+                filename = f"{self.band}_FF_fiber{fiber_num:02d}_{int(self.exposure_time)}s{wl_suffix}.fits"
             elif self.fibers.mode == "even_odd":
-                filename = f"{self.band}_FF_{suffix}_{int(self.exposure_time)}s.fits"
+                filename = f"{self.band}_FF_{suffix}_{int(self.exposure_time)}s{wl_suffix}.fits"
             else:
-                filename = f"{self.band}_FF_{self.fibers.mode}_{int(self.exposure_time)}s.fits"
+                filename = f"{self.band}_FF_{self.fibers.mode}_{int(self.exposure_time)}s{wl_suffix}.fits"
         elif self.simulation_type == "fabry_perot":
             if fiber_num is not None:
                 shift_str = f"_shift{suffix}" if suffix else ""
-                filename = f"{self.band}_FP_fiber{fiber_num:02d}{shift_str}.fits"
+                filename = f"{self.band}_FP_fiber{fiber_num:02d}{shift_str}{wl_suffix}.fits"
             else:
-                filename = f"{self.band}_FP_{int(self.exposure_time)}s.fits"
+                filename = f"{self.band}_FP_{self.fibers.mode}_{int(self.exposure_time)}s{wl_suffix}.fits"
         elif self.simulation_type == "spectrum":
             if fiber_num is not None:
-                filename = f"{self.band}_spectrum_fiber{fiber_num:02d}.fits"
+                filename = f"{self.band}_spectrum_fiber{fiber_num:02d}{wl_suffix}.fits"
             else:
-                filename = f"{self.band}_spectrum_{int(self.exposure_time)}s.fits"
+                filename = f"{self.band}_spectrum_{int(self.exposure_time)}s{wl_suffix}.fits"
         elif self.simulation_type == "lfc":
             if fiber_num is not None:
-                filename = f"{self.band}_LFC_fiber{fiber_num:02d}.fits"
+                filename = f"{self.band}_LFC_fiber{fiber_num:02d}{wl_suffix}.fits"
             else:
-                filename = f"{self.band}_LFC_{self.fibers.mode}_{int(self.exposure_time)}s.fits"
+                filename = f"{self.band}_LFC_{self.fibers.mode}_{int(self.exposure_time)}s{wl_suffix}.fits"
         elif self.simulation_type == "hdf_generation":
             filename = f"ANDES_75fibre_{self.band}.hdf" if self.band in ['Y', 'J', 'H'] else f"ANDES_123_{self.band}3.hdf"
         else:
             # Use template
             filename = self.output.filename_template.format(**filename_parts)
+            filename = self._append_suffix(filename, wl_suffix)
         
         return Path(directory) / filename
+    
+    def _format_wavelength_suffix(self) -> str:
+        if self.wl_min is None and self.wl_max is None:
+            return ""
+
+        def fmt(value: Optional[float]) -> str:
+            if value is None:
+                return "x"
+            text = f"{value:.3f}"
+            text = text.rstrip('0').rstrip('.')
+            if not text:
+                text = "0"
+            return text.replace('.', 'p')
+
+        return f"_wl{fmt(self.wl_min)}-{fmt(self.wl_max)}"
+    
+    def _append_suffix(self, filename: str, suffix: str) -> str:
+        if not suffix:
+            return filename
+        if '.' in filename:
+            stem, ext = filename.rsplit('.', 1)
+            return f"{stem}{suffix}.{ext}"
+        return f"{filename}{suffix}"
     
     @classmethod
     def from_yaml(cls, yaml_path: Union[str, Path]) -> 'SimulationConfig':

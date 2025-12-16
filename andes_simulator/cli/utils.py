@@ -71,7 +71,9 @@ def build_config_from_options(
     velocity_shift: Optional[float] = None,
     spectrum_path: Optional[Path] = None,
     flux_unit: str = "ph/s/AA",
-    hdf: Optional[str] = None
+    hdf: Optional[str] = None,
+    wl_min: Optional[float] = None,
+    wl_max: Optional[float] = None
 ):
     """
     Build a SimulationConfig from CLI options.
@@ -143,6 +145,8 @@ def build_config_from_options(
         exposure_time=exposure,
         velocity_shift=velocity_shift,
         hdf_model=hdf,
+        wl_min=wl_min,
+        wl_max=wl_max,
         source=SourceConfig(**source_kwargs),
         fibers=FiberConfig(mode=fiber_mode, fibers=fibers),
         output=OutputConfig(directory=output_directory)
@@ -180,6 +184,9 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
     
     if config.velocity_shift:
         click.echo(f"  Velocity shift: {config.velocity_shift} m/s")
+    if config.wl_min or config.wl_max:
+        wl_range = f"{config.wl_min or '...'}-{config.wl_max or '...'} nm"
+        click.echo(f"  Wavelength range: {wl_range}")
     
     if extra_lines:
         for line in extra_lines:

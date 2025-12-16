@@ -36,6 +36,8 @@ def common_options(f):
     f = click.option('--exposure', default=1.0, type=float, help='Exposure time in seconds')(f)
     f = click.option('--hdf', type=click.Path(exists=True, path_type=Path),
                      help='HDF model file (infers band if --band not given)')(f)
+    f = click.option('--wl-min', type=float, help='Minimum wavelength in nm')(f)
+    f = click.option('--wl-max', type=float, help='Maximum wavelength in nm')(f)
     return f
 
 
@@ -102,7 +104,7 @@ def cli(ctx, verbose, project_root):
 @click.option('--config', type=click.Path(exists=True, path_type=Path),
               help='YAML configuration file')
 @click.pass_context
-def flat_field(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, config, dry_run):
+def flat_field(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, wl_min, wl_max, config, dry_run):
     """Generate flat field calibration frames."""
     from ..core.config import SimulationConfig
 
@@ -121,7 +123,9 @@ def flat_field(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, h
             flux=flux,
             scaling=scaling,
             flux_unit="ph/s/AA",
-            hdf=hdf_path
+            hdf=hdf_path,
+            wl_min=wl_min,
+            wl_max=wl_max
         )
 
     run_simulation_command(
@@ -141,7 +145,7 @@ def flat_field(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, h
 @click.option('--config', type=click.Path(exists=True, path_type=Path),
               help='YAML configuration file')
 @click.pass_context
-def fabry_perot(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, velocity_shift, config, dry_run):
+def fabry_perot(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, wl_min, wl_max, velocity_shift, config, dry_run):
     """Generate Fabry-Perot wavelength calibration frames."""
     from ..core.config import SimulationConfig
 
@@ -160,7 +164,9 @@ def fabry_perot(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, 
             flux=flux,
             scaling=scaling,
             velocity_shift=velocity_shift,
-            hdf=hdf_path
+            hdf=hdf_path,
+            wl_min=wl_min,
+            wl_max=wl_max
         )
 
     run_simulation_command(
@@ -177,7 +183,7 @@ def fabry_perot(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, 
 @flux_options(default_scaling=1e5)
 @common_options
 @click.pass_context
-def lfc(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, dry_run):
+def lfc(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, wl_min, wl_max, dry_run):
     """Generate Laser Frequency Comb wavelength calibration frames.
 
     LFC produces unresolved emission lines equidistant in velocity,
@@ -194,7 +200,9 @@ def lfc(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, dry
         fiber=fiber,
         flux=flux,
         scaling=scaling,
-        hdf=hdf_path
+        hdf=hdf_path,
+        wl_min=wl_min,
+        wl_max=wl_max
     )
 
     run_simulation_command(
