@@ -136,8 +136,8 @@ def build_config_from_options(
     if spectrum_path is not None:
         source_kwargs['filepath'] = str(spectrum_path)
     
-    # Build output config
-    output_directory = str(output_dir) if output_dir else "../{band}/"
+    # Build output config (default to current working directory)
+    output_directory = str(output_dir) if output_dir else str(Path.cwd())
     
     return SimulationConfig(
         simulation_type=simulation_type,

@@ -41,9 +41,15 @@ def common_options(f):
     return f
 
 
-def resolve_band_and_hdf(band: Optional[str], hdf: Optional[Path], project_root: Optional[Path]) -> tuple:
-    """Resolve band and HDF model path, inferring band from HDF if needed."""
-    from ..core.instruments import infer_band_from_hdf, get_hdf_model_path
+def resolve_band_and_hdf(
+    band: Optional[str],
+    hdf: Optional[Path],
+    project_root: Optional[Path],
+    wl_min: Optional[float] = None,
+    wl_max: Optional[float] = None
+) -> tuple:
+    """Resolve band and HDF model path, inferring band from HDF or wavelengths if needed."""
+    from ..core.instruments import infer_band_from_hdf, infer_band_from_wavelengths, get_hdf_model_path
 
     if hdf:
         inferred_band = infer_band_from_hdf(hdf)
@@ -53,7 +59,15 @@ def resolve_band_and_hdf(band: Optional[str], hdf: Optional[Path], project_root:
         return inferred_band, str(hdf)
 
     if not band:
-        raise click.UsageError("Either --band or --hdf is required")
+        # Try to infer from wavelength limits
+        if wl_min is not None or wl_max is not None:
+            try:
+                band = infer_band_from_wavelengths(wl_min, wl_max)
+                click.echo(f"Inferred band: {band} (from wavelength limits)")
+            except ValueError as e:
+                raise click.UsageError(str(e))
+        else:
+            raise click.UsageError("Either --band, --hdf, or wavelength limits (--wl-min/--wl-max) required")
 
     # Use default HDF for band
     if project_root is None:
@@ -111,7 +125,7 @@ def flat_field(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, h
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
-        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'])
+        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
         sim_config = build_config_from_options(
             simulation_type="flat_field",
             band=band,
@@ -152,7 +166,7 @@ def fabry_perot(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, 
     if config:
         sim_config = SimulationConfig.from_yaml(config)
     else:
-        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'])
+        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
         sim_config = build_config_from_options(
             simulation_type="fabry_perot",
             band=band,
@@ -189,7 +203,7 @@ def lfc(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, wl_
     LFC produces unresolved emission lines equidistant in velocity,
     with approximately 100 lines per spectral order.
     """
-    band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'])
+    band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
     sim_config = build_config_from_options(
         simulation_type="lfc",
         band=band,

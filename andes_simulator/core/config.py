@@ -11,13 +11,13 @@ from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 from dataclasses import dataclass, field
 
-from .instruments import get_instrument_config, get_all_bands, FIBER_CONFIG
+from .instruments import get_instrument_config, get_all_bands, FIBER_CONFIG, validate_wavelength_range
 
 
 @dataclass
 class OutputConfig:
     """Configuration for simulation outputs."""
-    directory: str = "../{band}/"
+    directory: str = "."
     filename_template: str = "{band}_{type}_{exposure}s.fits"
     overwrite: bool = True
 
@@ -95,7 +95,10 @@ class SimulationConfig:
         # Validate band
         if self.band not in get_all_bands():
             raise ValueError(f"Invalid band '{self.band}'. Available: {get_all_bands()}")
-        
+
+        # Validate wavelength limits against band
+        validate_wavelength_range(self.band, self.wl_min, self.wl_max)
+
         # Validate simulation type
         valid_sim_types = ["flat_field", "fabry_perot", "spectrum", "lfc", "hdf_generation"]
         if self.simulation_type not in valid_sim_types:

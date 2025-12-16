@@ -124,6 +124,18 @@ INSTRUMENTS = {
     }
 }
 
+# Band wavelength ranges in nm
+BAND_WAVELENGTH_RANGES = {
+    'U': (310, 390),
+    'B': (390, 490),
+    'V': (490, 620),
+    'R': (620, 800),
+    'IZ': (800, 1000),
+    'Y': (1000, 1150),
+    'J': (1150, 1350),
+    'H': (1450, 1800),
+}
+
 # Telescope configuration (ELT)
 TELESCOPE = {
     'primary_diameter': 39.3,  # meters
@@ -292,23 +304,90 @@ def infer_band_from_hdf(hdf_path: Path) -> str:
     wl_max = max(wavelengths) * 1000
     wl_center = (wl_min + wl_max) / 2
 
-    # Band wavelength ranges in nm (center wavelength must fall within)
-    band_ranges = {
-        'U': (310, 390),
-        'B': (390, 490),
-        'V': (490, 620),
-        'R': (620, 800),
-        'IZ': (800, 1000),
-        'Y': (1000, 1150),
-        'J': (1150, 1350),
-        'H': (1450, 1800),
-    }
-
-    for band, (low, high) in band_ranges.items():
+    for band, (low, high) in BAND_WAVELENGTH_RANGES.items():
         if low <= wl_center <= high:
             return band
 
     raise ValueError(f"Cannot infer band from wavelength range {wl_min:.0f}-{wl_max:.0f}nm")
+
+
+def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None) -> str:
+    """
+    Infer spectral band from wavelength limits.
+
+    Parameters
+    ----------
+    wl_min : float, optional
+        Minimum wavelength in nm
+    wl_max : float, optional
+        Maximum wavelength in nm
+
+    Returns
+    -------
+    str
+        Inferred band name
+
+    Raises
+    ------
+    ValueError
+        If band cannot be uniquely determined from wavelength range
+    """
+    if wl_min is None and wl_max is None:
+        raise ValueError("At least one of wl_min or wl_max must be provided")
+
+    matching_bands = []
+    for band, (low, high) in BAND_WAVELENGTH_RANGES.items():
+        # Check if any part of the requested range overlaps with this band
+        req_min = wl_min if wl_min is not None else low
+        req_max = wl_max if wl_max is not None else high
+        if req_min <= high and req_max >= low:
+            matching_bands.append(band)
+
+    if len(matching_bands) == 0:
+        raise ValueError(
+            f"Wavelength range {wl_min}-{wl_max}nm does not match any band")
+    if len(matching_bands) > 1:
+        raise ValueError(
+            f"Wavelength range {wl_min}-{wl_max}nm is ambiguous, "
+            f"could match: {', '.join(matching_bands)}. Use --band to specify.")
+
+    return matching_bands[0]
+
+
+def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = None) -> None:
+    """
+    Validate that wavelength limits fall within the band's range.
+
+    Parameters
+    ----------
+    band : str
+        Spectral band name
+    wl_min : float, optional
+        Minimum wavelength in nm
+    wl_max : float, optional
+        Maximum wavelength in nm
+
+    Raises
+    ------
+    ValueError
+        If wavelength limits are outside the band's range
+    """
+    if wl_min is None and wl_max is None:
+        return
+
+    if band not in BAND_WAVELENGTH_RANGES:
+        raise ValueError(f"Unknown band '{band}'")
+
+    band_min, band_max = BAND_WAVELENGTH_RANGES[band]
+
+    if wl_min is not None and wl_min < band_min:
+        raise ValueError(
+            f"wl_min={wl_min}nm is below {band}-band range ({band_min}-{band_max}nm)")
+    if wl_max is not None and wl_max > band_max:
+        raise ValueError(
+            f"wl_max={wl_max}nm is above {band}-band range ({band_min}-{band_max}nm)")
+    if wl_min is not None and wl_max is not None and wl_min >= wl_max:
+        raise ValueError(f"wl_min={wl_min}nm must be less than wl_max={wl_max}nm")
 
 
 def get_sed_path(band: str, project_root: Path = None) -> Path:
