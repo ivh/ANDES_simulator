@@ -112,162 +112,80 @@ def cli(ctx, verbose, project_root):
 
 
 @cli.command()
-@click.option('--band', type=click.Choice(ANDES_BANDS), help='Spectral band (inferred from --hdf-model if not given)')
-@subslit_options
-@flux_options(default_scaling=2e5)
-@common_options
-@click.option('--config', type=click.Path(exists=True, path_type=Path),
-              help='YAML configuration file')
-@click.pass_context
-def flat_field(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, wl_min, wl_max, fib_eff, config, dry_run):
-    """Generate flat field calibration frames."""
-    from ..core.config import SimulationConfig
-
-    if config:
-        sim_config = SimulationConfig.from_yaml(config)
-    else:
-        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
-        sim_config = build_config_from_options(
-            simulation_type="flat_field",
-            band=band,
-            exposure=exposure,
-            source_type="constant",
-            fiber_mode=subslit,
-            output_dir=output_dir,
-            fiber=fiber,
-            flux=flux,
-            scaling=scaling,
-            flux_unit="ph/s/AA",
-            hdf=hdf_path,
-            wl_min=wl_min,
-            wl_max=wl_max,
-            fib_eff=fib_eff
-        )
-
-    run_simulation_command(
-        sim_config,
-        dry_run,
-        lambda: format_dry_run_output(sim_config),
-        f"Flat field simulation completed ({subslit} subslit)"
-    )
-
-
-@cli.command()
-@click.option('--band', type=click.Choice(ANDES_BANDS), help='Spectral band (inferred from --hdf-model if not given)')
+@click.option('--band', type=click.Choice(ANDES_BANDS),
+              help='Spectral band (inferred from --hdf or wavelengths if not given)')
+@click.option('--source', 'source_spec', required=True, type=str,
+              help='Source type: flat, fp, lfc, or path to CSV file')
 @subslit_options
 @flux_options(default_scaling=1e5)
 @common_options
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
-@click.option('--config', type=click.Path(exists=True, path_type=Path),
-              help='YAML configuration file')
 @click.pass_context
-def fabry_perot(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, wl_min, wl_max, fib_eff, velocity_shift, config, dry_run):
-    """Generate Fabry-Perot wavelength calibration frames."""
-    from ..core.config import SimulationConfig
+def simulate(ctx, band, source_spec, subslit, fiber, flux, scaling, exposure,
+             output_dir, hdf, wl_min, wl_max, fib_eff, velocity_shift, dry_run):
+    """Run detector simulation with specified source.
 
-    if config:
-        sim_config = SimulationConfig.from_yaml(config)
-    else:
-        band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
-        sim_config = build_config_from_options(
-            simulation_type="fabry_perot",
-            band=band,
-            exposure=exposure,
-            source_type="fabry_perot",
-            fiber_mode=subslit,
-            output_dir=output_dir,
-            fiber=fiber,
-            flux=flux,
-            scaling=scaling,
-            velocity_shift=velocity_shift,
-            hdf=hdf_path,
-            wl_min=wl_min,
-            wl_max=wl_max,
-            fib_eff=fib_eff
-        )
+    Source types:
+      flat    - Constant flux (flat field calibration)
+      fp      - Fabry-Perot calibration spectrum
+      lfc     - Laser Frequency Comb calibration
+      *.csv   - Custom spectrum from CSV file
 
-    run_simulation_command(
-        sim_config,
-        dry_run,
-        lambda: format_dry_run_output(sim_config),
-        "Fabry-Perot simulation completed"
-    )
-
-
-@cli.command()
-@click.option('--band', type=click.Choice(ANDES_BANDS), help='Spectral band (inferred from --hdf-model if not given)')
-@subslit_options
-@flux_options(default_scaling=1e5)
-@common_options
-@click.pass_context
-def lfc(ctx, band, subslit, fiber, flux, scaling, exposure, output_dir, hdf, wl_min, wl_max, fib_eff, dry_run):
-    """Generate Laser Frequency Comb wavelength calibration frames.
-
-    LFC produces unresolved emission lines equidistant in velocity,
-    with approximately 100 lines per spectral order.
+    Examples:
+      andes-sim simulate --band R --source flat --subslit all
+      andes-sim simulate --band R --source fp --fiber 21 --velocity-shift 100
+      andes-sim simulate --band R --source lfc --exposure 30
+      andes-sim simulate --band R --source SED/star.csv --fiber 21
     """
+    # Resolve source type
+    source_spec_lower = source_spec.lower()
+    if source_spec_lower == 'flat':
+        source_type = 'constant'
+        simulation_type = 'flat_field'
+        spectrum_path = None
+    elif source_spec_lower == 'fp':
+        source_type = 'fabry_perot'
+        simulation_type = 'fabry_perot'
+        spectrum_path = None
+    elif source_spec_lower == 'lfc':
+        source_type = 'lfc'
+        simulation_type = 'lfc'
+        spectrum_path = None
+    elif source_spec.endswith('.csv') or Path(source_spec).exists():
+        source_type = 'csv'
+        simulation_type = 'spectrum'
+        spectrum_path = Path(source_spec)
+        if not spectrum_path.exists():
+            raise click.BadParameter(f"Spectrum file not found: {source_spec}")
+    else:
+        raise click.BadParameter(
+            f"Unknown source '{source_spec}'. Use: flat, fp, lfc, or path to CSV")
+
     band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
+
     sim_config = build_config_from_options(
-        simulation_type="lfc",
+        simulation_type=simulation_type,
         band=band,
         exposure=exposure,
-        source_type="lfc",
+        source_type=source_type,
         fiber_mode=subslit,
         output_dir=output_dir,
         fiber=fiber,
         flux=flux,
         scaling=scaling,
+        velocity_shift=velocity_shift,
         hdf=hdf_path,
         wl_min=wl_min,
         wl_max=wl_max,
-        fib_eff=fib_eff
+        fib_eff=fib_eff,
+        spectrum_path=spectrum_path
     )
 
     run_simulation_command(
         sim_config,
         dry_run,
         lambda: format_dry_run_output(sim_config),
-        "LFC simulation completed"
-    )
-
-
-@cli.command()
-@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
-              help='Spectral band')
-@click.option('--spectrum', required=True, type=click.Path(exists=True, path_type=Path),
-              help='CSV spectrum file')
-@click.option('--fiber', required=True, type=int, help='Fiber number to illuminate')
-@click.option('--scaling', default=5e3, type=float, help='Spectrum flux scaling factor')
-@click.option('--exposure', default=30.0, type=float, help='Exposure time in seconds')
-@click.option('--output-dir', type=click.Path(path_type=Path), help='Output directory')
-@click.option('--config', type=click.Path(exists=True, path_type=Path),
-              help='YAML configuration file')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without running')
-@click.pass_context
-def spectrum(ctx, band, spectrum, fiber, scaling, exposure, output_dir, config, dry_run):
-    """Generate stellar spectrum observations."""
-    from ..core.config import SimulationConfig
-
-    if config:
-        sim_config = SimulationConfig.from_yaml(config)
-    else:
-        sim_config = build_config_from_options(
-            simulation_type="spectrum",
-            band=band,
-            exposure=exposure,
-            source_type="csv",
-            fiber_mode="single",
-            output_dir=output_dir,
-            fiber=fiber,
-            scaling=scaling,
-            spectrum_path=spectrum
-        )
-    
-    run_simulation_command(
-        sim_config,
-        dry_run,
-        lambda: format_dry_run_output(sim_config),
-        f"Spectrum simulation completed for fiber {fiber}"
+        f"Simulation completed ({source_spec})"
     )
 
 

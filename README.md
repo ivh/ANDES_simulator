@@ -14,16 +14,16 @@ interface to allow quick iterations on simulated frames. No guarantees.
 uv run andes-sim list-bands
 
 # Generate flat field calibration (R-band, single fiber)
-uv run andes-sim flat-field --band R --fiber 21
+uv run andes-sim simulate --band R --source flat --fiber 21
 
-# Generate Fabry-Perot in the IFU for a small wavelenth range in H-band
-uv run andes-sim fabry-perot --subslit ifu --wl-min 1600 --wl-max 1603
+# Generate Fabry-Perot in the IFU for a small wavelength range in H-band
+uv run andes-sim simulate --source fp --subslit ifu --wl-min 1600 --wl-max 1603
 
 # Generate LFC (Laser Frequency Comb) in the calibration fibers, double default flux
-uv run andes-sim lfc --band R --subslit cal --flux 2
+uv run andes-sim simulate --band R --source lfc --subslit cal --flux 2
 
 # Varying fiber efficiency in SL slit A
-uv run andes-sim flat-field --band H --subslit slitA  --wl-min 1600 --wl-max 1602 --fib-eff 0.5-0.95
+uv run andes-sim simulate --source flat --band H --subslit slitA --wl-min 1600 --wl-max 1602 --fib-eff 0.5-0.95
 ```
 
 ## Installation
@@ -53,30 +53,30 @@ pip install -e .
 # List available commands
 uv run andes-sim --help
 
-# List options for one of the commands
-uv run andes-sim lfc --help
+# List options for simulation
+uv run andes-sim simulate --help
 ```
 
 ### Calibration Simulations
 
 ```bash
 # Flat field - various subslits
-uv run andes-sim flat-field --band R --subslit all --output-dir ../R/
-uv run andes-sim flat-field --band R --fiber 21
-uv run andes-sim flat-field --band R --subslit even_odd
-uv run andes-sim flat-field --band R --subslit slitA
-uv run andes-sim flat-field --band R --subslit cal
-uv run andes-sim flat-field --band Y --subslit ifu
-uv run andes-sim flat-field --band H --subslit ring1
+uv run andes-sim simulate --band R --source flat --subslit all --output-dir ../R/
+uv run andes-sim simulate --band R --source flat --fiber 21
+uv run andes-sim simulate --band R --source flat --subslit even_odd
+uv run andes-sim simulate --band R --source flat --subslit slitA
+uv run andes-sim simulate --band R --source flat --subslit cal
+uv run andes-sim simulate --band Y --source flat --subslit ifu
+uv run andes-sim simulate --band H --source flat --subslit ring1
 
 # Fabry-Perot wavelength calibration
-uv run andes-sim fabry-perot --band R --subslit single --fiber 21 --flux 100 --output-dir ../R/
+uv run andes-sim simulate --band R --source fp --fiber 21 --flux 100 --output-dir ../R/
 
 # LFC (Laser Frequency Comb) calibration
-uv run andes-sim lfc --band R --subslit single --fiber 21 --scaling 1e5 --output-dir ../R/
+uv run andes-sim simulate --band R --source lfc --fiber 21 --scaling 1e5 --output-dir ../R/
 
 # Stellar spectrum observation
-uv run andes-sim spectrum --band R --spectrum SED/star.csv --fiber 21 --output-dir ../R/
+uv run andes-sim simulate --band R --source SED/star.csv --fiber 21 --output-dir ../R/
 ```
 
 ### Post-Processing
@@ -100,10 +100,10 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 uv run andes-sim list-bands
 
 # Dry run (show what would be done)
-uv run andes-sim flat-field --band R --fiber 21 --dry-run
+uv run andes-sim simulate --band R --source flat --fiber 21 --dry-run
 
 # Use custom HDF model (band inferred from wavelength content)
-uv run andes-sim flat-field --hdf HDF/ANDES_full_F18A33_win_jmr_MC_T0019_Rband_p0.hdf --dry-run
+uv run andes-sim simulate --source flat --hdf HDF/ANDES_full_F18A33_win_jmr_MC_T0019_Rband_p0.hdf --dry-run
 
 # Run from YAML configuration file
 uv run andes-sim run-config configs/examples/flat_field_single_fiber.yaml

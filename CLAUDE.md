@@ -7,39 +7,36 @@
 ### Simulation Commands
 
 ```bash
-# Flat field calibrations
-uv run andes-sim flat-field --band R --subslit all --output-dir ../R/
-uv run andes-sim flat-field --band R --subslit single --fiber 21 --output-dir ../R/
-uv run andes-sim flat-field --band R --subslit slitA --output-dir ../R/
+# Flat field
+uv run andes-sim simulate --band R --source flat --subslit all
+uv run andes-sim simulate --band R --source flat --fiber 21
 
-# Fabry-Perot wavelength calibration
-uv run andes-sim fabry-perot --band R --subslit single --fiber 21 --flux 100 --output-dir ../R/
+# Fabry-Perot
+uv run andes-sim simulate --band R --source fp --fiber 21 --flux 100
 
-# LFC (Laser Frequency Comb) calibration
-uv run andes-sim lfc --band R --subslit single --fiber 21 --scaling 1e5 --output-dir ../R/
+# LFC
+uv run andes-sim simulate --band R --source lfc --subslit cal
 
-# YJH IFU modes
-uv run andes-sim flat-field --band Y --subslit ifu --output-dir ../Y/
-uv run andes-sim flat-field --band Y --subslit ring2 --output-dir ../Y/
+# YJH IFU
+uv run andes-sim simulate --band Y --source flat --subslit ifu
 
-# Stellar spectrum
-uv run andes-sim spectrum --band R --spectrum SED/star.csv --fiber 21 --output-dir ../R/
+# Stellar spectrum (CSV path auto-detected as source type)
+uv run andes-sim simulate --band R --source SED/star.csv --fiber 21
 ```
 
 ### Post-Processing Commands
 
 ```bash
-# Combine individual fiber outputs
-uv run andes-sim combine --band R --input-pattern "R_FP_fiber{fib:02d}_30s.fits" \
-    --mode all --output-dir /absolute/path/to/R/ --output R_combined.fits
+# Combine fiber outputs
+uv run andes-sim combine --band R --input-pattern "R_FP_fiber{fib:02d}_*.fits" --mode all
 
 # PSF convolution
-uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fits" \
-    --fwhm 3.2 --output-dir ../R/
+uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fits" --fwhm 3.2
 ```
 
 ### Key Options
 
+- `--source`: Source type (`flat`, `fp`, `lfc`) or path to CSV spectrum file
 - `--hdf`: Custom HDF model file (infers band from wavelength content)
 - `--subslit`: Fiber selection for simulations
   - All bands: `all`, `single`, `even_odd`, `slitA`, `slitB`, `cal`
@@ -59,16 +56,11 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 
 ```
 src/
-├── andes_simulator/    # Main framework
+├── andes_simulator/    # Main package
 │   ├── cli/            # Command-line interface
 │   ├── core/           # Simulator, config, sources
-│   ├── sources/        # FF, FP, LFC, stellar sources
+│   ├── sources/        # Source spectrum generators
 │   └── postprocess/    # combine, psf tools
-├── legacy/             # Archived scripts (reference only)
 ├── HDF/                # ZEMAX optical models (.hdf)
 └── SED/                # Spectral data (.csv)
 ```
-
-## Validation Status
-
-See `VALIDATION_REPORT.md` and `CLEANUP_PLAN.md` for detailed test results.
