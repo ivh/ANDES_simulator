@@ -172,7 +172,7 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
     click.echo(f"  Band: {config.band}")
     if config.hdf_model:
         click.echo(f"  HDF model: {config.hdf_model}")
-    click.echo(f"  Mode: {config.fibers.mode}")
+    click.echo(f"  Subslit: {config.fibers.mode}")
     click.echo(f"  Exposure: {config.exposure_time}s")
     
     if config.source.type == "constant":

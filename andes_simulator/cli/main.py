@@ -164,6 +164,10 @@ def simulate(ctx, band, source_spec, subslit, fiber, flux, scaling, exposure,
 
     band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
 
+    # --fiber implies --subslit single
+    if fiber is not None and subslit == 'all':
+        subslit = 'single'
+
     sim_config = build_config_from_options(
         simulation_type=simulation_type,
         band=band,
