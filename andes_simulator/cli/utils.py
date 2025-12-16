@@ -65,6 +65,7 @@ def build_config_from_options(
     source_type: str,
     fiber_mode: str,
     output_dir: Optional[Path] = None,
+    output_name: Optional[str] = None,
     fiber: Optional[int] = None,
     flux: float = 1.0,
     scaling: Optional[float] = None,
@@ -139,7 +140,7 @@ def build_config_from_options(
     
     # Build output config (default to current working directory)
     output_directory = str(output_dir) if output_dir else str(Path.cwd())
-    
+
     return SimulationConfig(
         simulation_type=simulation_type,
         band=band,
@@ -151,7 +152,7 @@ def build_config_from_options(
         fib_eff=fib_eff,
         source=SourceConfig(**source_kwargs),
         fibers=FiberConfig(mode=fiber_mode, fibers=fibers),
-        output=OutputConfig(directory=output_directory)
+        output=OutputConfig(directory=output_directory, filename=output_name)
     )
 
 
@@ -191,7 +192,9 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
         click.echo(f"  Wavelength range: {wl_range}")
     if config.fib_eff:
         click.echo(f"  Fiber efficiency: {config.fib_eff}")
-    
+    if config.output.filename:
+        click.echo(f"  Output: {config.output.filename}")
+
     if extra_lines:
         for line in extra_lines:
             click.echo(f"  {line}")

@@ -119,10 +119,11 @@ def cli(ctx, verbose, project_root):
 @subslit_options
 @flux_options(default_scaling=1e5)
 @common_options
+@click.option('--output-name', type=str, help='Output filename (overrides default)')
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
 @click.pass_context
 def simulate(ctx, band, source_spec, subslit, fiber, flux, scaling, exposure,
-             output_dir, hdf, wl_min, wl_max, fib_eff, velocity_shift, dry_run):
+             output_dir, output_name, hdf, wl_min, wl_max, fib_eff, velocity_shift, dry_run):
     """Run detector simulation with specified source.
 
     Source types:
@@ -170,6 +171,7 @@ def simulate(ctx, band, source_spec, subslit, fiber, flux, scaling, exposure,
         source_type=source_type,
         fiber_mode=subslit,
         output_dir=output_dir,
+        output_name=output_name,
         fiber=fiber,
         flux=flux,
         scaling=scaling,

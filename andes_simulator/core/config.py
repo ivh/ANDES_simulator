@@ -19,6 +19,7 @@ class OutputConfig:
     """Configuration for simulation outputs."""
     directory: str = "."
     filename_template: str = "{band}_{type}_{exposure}s.fits"
+    filename: Optional[str] = None  # Explicit filename override
     overwrite: bool = True
 
 
@@ -230,7 +231,11 @@ class SimulationConfig:
             band=self.band,
             type=self.simulation_type
         )
-        
+
+        # Use explicit filename if set
+        if self.output.filename:
+            return Path(directory) / self.output.filename
+
         # Format filename
         filename_parts = {
             'band': self.band,
