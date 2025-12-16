@@ -20,7 +20,7 @@ from pyechelle.hdfbuilder import HDFBuilder
 from pyechelle.spectrograph import InteractiveZEMAX
 
 from .config import SimulationConfig
-from .instruments import get_instrument_config, get_hdf_model_path, get_sed_path
+from .instruments import get_instrument_config, get_hdf_model_path, get_sed_path, BAND_WAVELENGTH_RANGES
 from .sources import SourceFactory, SPEED_OF_LIGHT
 
 
@@ -59,6 +59,82 @@ class AndesSimulator:
     def cleanup(self) -> None:
         """Clean up resources (temporary files, etc.)."""
         self.source_factory.cleanup()
+
+    def _parse_fib_eff(self, fib_eff: str) -> tuple:
+        """
+        Parse fiber efficiency specification.
+
+        Parameters
+        ----------
+        fib_eff : str
+            Efficiency value as "0.9" or range as "0.7-0.9"
+
+        Returns
+        -------
+        tuple
+            (min_eff, max_eff) - if equal, use constant; if different, use random
+        """
+        if '-' in fib_eff:
+            parts = fib_eff.split('-')
+            if len(parts) != 2:
+                raise ValueError(f"Invalid fib_eff format: {fib_eff}")
+            return float(parts[0]), float(parts[1])
+        else:
+            val = float(fib_eff)
+            return val, val
+
+    def _apply_fiber_efficiency(self, spec, fib_eff: str) -> None:
+        """
+        Apply fiber efficiency to spectrograph by setting PyEchelle's internal cache.
+
+        Parameters
+        ----------
+        spec : ZEMAX or LocalDisturber
+            The spectrograph object
+        fib_eff : str
+            Efficiency specification ("0.9" or "0.7-0.9")
+        """
+        from pyechelle.efficiency import TabulatedEfficiency, SystemEfficiency, ConstantEfficiency
+
+        eff_min, eff_max = self._parse_fib_eff(fib_eff)
+
+        # Get the ZEMAX object (may be wrapped in LocalDisturber)
+        if hasattr(spec, 'spectrograph'):
+            zemax = spec.spectrograph
+        else:
+            zemax = spec
+
+        n_fibers = self.instrument_config['n_fibers']
+        ccd_index = 1
+
+        # Get wavelength range for this band (convert nm to microns)
+        wl_min_nm, wl_max_nm = BAND_WAVELENGTH_RANGES[self.config.band]
+        wl_min_um = wl_min_nm / 1000.0
+        wl_max_um = wl_max_nm / 1000.0
+        wavelengths = np.array([wl_min_um, (wl_min_um + wl_max_um) / 2, wl_max_um])
+
+        self.logger.info(f"Applying fiber efficiency: {fib_eff}")
+
+        # Ensure the efficiency cache dict exists
+        if not hasattr(zemax, '_efficiency') or zemax._efficiency is None:
+            zemax._efficiency = {}
+        if ccd_index not in zemax._efficiency:
+            zemax._efficiency[ccd_index] = {}
+
+        for fiber_num in range(1, n_fibers + 1):
+            # Determine efficiency value for this fiber
+            if eff_min == eff_max:
+                eff_value = eff_min
+            else:
+                eff_value = np.random.uniform(eff_min, eff_max)
+
+            efficiency = np.array([eff_value, eff_value, eff_value])
+
+            # Create efficiency object and set in cache
+            fiber_eff_obj = TabulatedEfficiency("FiberEff", wavelengths, efficiency)
+            zemax._efficiency[ccd_index][fiber_num] = SystemEfficiency(
+                [fiber_eff_obj], "System"
+            )
     
     def __del__(self):
         """Ensure cleanup on deletion."""
@@ -92,7 +168,11 @@ class AndesSimulator:
             self.logger.info(f"Applied velocity shift: {self.config.velocity_shift} m/s")
         else:
             spec = ZEMAX(str(hdf_path))
-        
+
+        # Apply fiber efficiency if specified
+        if self.config.fib_eff:
+            self._apply_fiber_efficiency(spec, self.config.fib_eff)
+
         # Create simulator
         self.simulator = Simulator(spec)
         self.simulator.set_ccd(1)

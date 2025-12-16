@@ -73,7 +73,8 @@ def build_config_from_options(
     flux_unit: str = "ph/s/AA",
     hdf: Optional[str] = None,
     wl_min: Optional[float] = None,
-    wl_max: Optional[float] = None
+    wl_max: Optional[float] = None,
+    fib_eff: Optional[str] = None
 ):
     """
     Build a SimulationConfig from CLI options.
@@ -147,6 +148,7 @@ def build_config_from_options(
         hdf_model=hdf,
         wl_min=wl_min,
         wl_max=wl_max,
+        fib_eff=fib_eff,
         source=SourceConfig(**source_kwargs),
         fibers=FiberConfig(mode=fiber_mode, fibers=fibers),
         output=OutputConfig(directory=output_directory)
@@ -187,6 +189,8 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
     if config.wl_min or config.wl_max:
         wl_range = f"{config.wl_min or '...'}-{config.wl_max or '...'} nm"
         click.echo(f"  Wavelength range: {wl_range}")
+    if config.fib_eff:
+        click.echo(f"  Fiber efficiency: {config.fib_eff}")
     
     if extra_lines:
         for line in extra_lines:

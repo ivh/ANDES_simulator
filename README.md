@@ -21,6 +21,9 @@ uv run andes-sim fabry-perot --subslit ifu --wl-min 1600 --wl-max 1603
 
 # Generate LFC (Laser Frequency Comb) in the calibration fibers, double default flux
 uv run andes-sim lfc --band R --subslit cal --flux 2
+
+# Varying fiber efficiency in SL slit A
+uv run andes-sim flat-field --band H --subslit slitA  --wl-min 1600 --wl-max 1602 --fib-eff 0.5-0.95
 ```
 
 ## Installation
@@ -43,6 +46,16 @@ pip install -e .
 ```
 
 ## Command Line Interface
+
+### List options
+
+```bash
+# List available commands
+uv run andes-sim --help
+
+# List options for one of the commands
+uv run andes-sim lfc --help
+```
 
 ### Calibration Simulations
 
