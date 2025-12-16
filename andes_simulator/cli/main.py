@@ -25,8 +25,24 @@ from .utils import (
 # Lightweight band list for CLI validation (avoids importing instruments module)
 ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
 
-SUBSLIT_CHOICES = ['all', 'single', 'even_odd', 'slitA', 'slitB', 'cal',
+SUBSLIT_CHOICES = ['all', 'even_odd', 'slitA', 'slitB', 'cal',
                    'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']
+
+
+def validate_fiber_spec(ctx, param, value):
+    """Validate --subslit/--fiber value: either int or valid mode string."""
+    if value is None:
+        return 'all'
+    # Try to parse as integer (fiber number)
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    # Validate as mode string
+    if value not in SUBSLIT_CHOICES:
+        raise click.BadParameter(
+            f"Must be fiber number or one of: {', '.join(SUBSLIT_CHOICES)}")
+    return value
 
 
 def common_options(f):
@@ -79,9 +95,9 @@ def resolve_band_and_hdf(
 
 def subslit_options(f):
     """Subslit/fiber selection options."""
-    f = click.option('--fiber', type=int, help='Specific fiber number (for single subslit)')(f)
-    f = click.option('--subslit', default='all', type=click.Choice(SUBSLIT_CHOICES),
-                     help='Fiber selection (ifu/ringN only for YJH bands)')(f)
+    f = click.option('--subslit', '--fiber', 'fiber_spec', default='all',
+                     callback=validate_fiber_spec, is_eager=True,
+                     help='Fiber number (e.g. 21) or mode (all, slitA, ifu, ...)')(f)
     return f
 
 
@@ -122,7 +138,7 @@ def cli(ctx, verbose, project_root):
 @click.option('--output-name', type=str, help='Output filename (overrides default)')
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
 @click.pass_context
-def simulate(ctx, band, source_spec, subslit, fiber, flux, scaling, exposure,
+def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
              output_dir, output_name, hdf, wl_min, wl_max, fib_eff, velocity_shift, dry_run):
     """Run detector simulation with specified source.
 
@@ -133,9 +149,9 @@ def simulate(ctx, band, source_spec, subslit, fiber, flux, scaling, exposure,
       *.csv   - Custom spectrum from CSV file
 
     Examples:
-      andes-sim simulate --band R --source flat --subslit all
+      andes-sim simulate --band R --source flat
       andes-sim simulate --band R --source fp --fiber 21 --velocity-shift 100
-      andes-sim simulate --band R --source lfc --exposure 30
+      andes-sim simulate --band R --source lfc --subslit cal
       andes-sim simulate --band R --source SED/star.csv --fiber 21
     """
     # Resolve source type
@@ -164,16 +180,20 @@ def simulate(ctx, band, source_spec, subslit, fiber, flux, scaling, exposure,
 
     band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
 
-    # --fiber implies --subslit single
-    if fiber is not None and subslit == 'all':
-        subslit = 'single'
+    # Parse fiber_spec: int means single fiber, string means mode
+    if isinstance(fiber_spec, int):
+        fiber_mode = 'single'
+        fiber = fiber_spec
+    else:
+        fiber_mode = fiber_spec
+        fiber = None
 
     sim_config = build_config_from_options(
         simulation_type=simulation_type,
         band=band,
         exposure=exposure,
         source_type=source_type,
-        fiber_mode=subslit,
+        fiber_mode=fiber_mode,
         output_dir=output_dir,
         output_name=output_name,
         fiber=fiber,
