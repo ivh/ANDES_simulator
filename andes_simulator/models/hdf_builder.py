@@ -8,7 +8,7 @@ optical designs with proper fiber field configurations.
 import logging
 import numpy as np
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 
 from pyechelle.CCD import CCD
 from pyechelle.hdfbuilder import HDFBuilder

@@ -9,8 +9,9 @@ from pyechelle.simulator import Simulator
 from pyechelle.sources import CSV
 from pyechelle.sources import Constant
 from pyechelle.telescope import Telescope
-from pyechelle.spectrograph import ZEMAX, LocalDisturber, GlobalDisturber
-import os, sys, random
+from pyechelle.spectrograph import ZEMAX
+import os
+import sys
 from pathlib import Path
 
 t_exp = 30  # sec

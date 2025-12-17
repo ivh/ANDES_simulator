@@ -8,7 +8,7 @@ with various edge-blanking effects and kernel configurations.
 import numpy as np
 import random
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Optional, Tuple
 from astropy.io import fits
 from scipy.signal import convolve2d
 import concurrent.futures

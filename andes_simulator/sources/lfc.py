@@ -7,7 +7,6 @@ which translates to logarithmic spacing in wavelength (constant delta-v).
 
 from typing import List, Any, Optional, Tuple
 from pathlib import Path
-import tempfile
 import numpy as np
 
 from pyechelle.sources import CSVSource, ConstantPhotonFlux

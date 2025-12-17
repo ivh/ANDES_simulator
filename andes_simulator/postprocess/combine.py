@@ -7,7 +7,7 @@ integrated detector frames with various combination modes.
 
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, List, Any, Optional
 from astropy.io import fits
 import concurrent.futures
 import functools

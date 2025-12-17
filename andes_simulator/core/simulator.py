@@ -12,7 +12,6 @@ from typing import List, Dict, Any, Optional, Union
 
 # Import pyechelle components
 from pyechelle.simulator import Simulator
-from pyechelle.sources import ConstantPhotonFlux, CSVSource
 from pyechelle.telescope import Telescope
 from pyechelle.spectrograph import ZEMAX, LocalDisturber
 from pyechelle.CCD import CCD
@@ -20,7 +19,7 @@ from pyechelle.hdfbuilder import HDFBuilder
 from pyechelle.spectrograph import InteractiveZEMAX
 
 from .config import SimulationConfig
-from .instruments import get_instrument_config, get_hdf_model_path, get_sed_path, BAND_WAVELENGTH_RANGES
+from .instruments import get_hdf_model_path, BAND_WAVELENGTH_RANGES
 from .sources import SourceFactory, SPEED_OF_LIGHT
 
 
@@ -94,7 +93,7 @@ class AndesSimulator:
         fib_eff : str
             Efficiency specification ("0.9" or "0.7-0.9")
         """
-        from pyechelle.efficiency import TabulatedEfficiency, SystemEfficiency, ConstantEfficiency
+        from pyechelle.efficiency import TabulatedEfficiency, SystemEfficiency
 
         eff_min, eff_max = self._parse_fib_eff(fib_eff)
 

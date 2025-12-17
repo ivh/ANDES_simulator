@@ -3,7 +3,8 @@ from pyechelle.sources import CSVSource as CSV
 from pyechelle.sources import ConstantPhotonFlux as Constant
 from pyechelle.telescope import Telescope
 from pyechelle.spectrograph import ZEMAX
-import os, sys
+import os
+import sys
 import astropy.units as u
 from pathlib import Path
 

@@ -86,8 +86,6 @@ class FabryPerotSource:
             FP spectrum source
         """
         import pandas as pd
-        import tempfile
-        import os
 
         fp_path = self._get_fp_file()
 

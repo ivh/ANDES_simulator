@@ -6,9 +6,8 @@ including flat field, Fabry-Perot, stellar observations, and post-processing.
 """
 
 import sys
-import logging
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 try:
     import click
 except ImportError:

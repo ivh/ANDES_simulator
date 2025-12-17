@@ -5,7 +5,7 @@ Provides different illumination patterns for flat field calibrations
 including single fiber, even/odd patterns, and slit-specific illuminations.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Any, Optional
 from pyechelle.sources import ConstantPhotonFlux
 
 

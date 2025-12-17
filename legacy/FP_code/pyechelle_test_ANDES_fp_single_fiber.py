@@ -8,8 +8,10 @@ from pyechelle.simulator import Simulator
 from pyechelle.sources import CSVSource
 from pyechelle.sources import ConstantFlux
 from pyechelle.telescope import Telescope
-from pyechelle.spectrograph import ZEMAX, LocalDisturber, GlobalDisturber
-import os, sys, random
+from pyechelle.spectrograph import ZEMAX, LocalDisturber
+import os
+import sys
+import random
 from pathlib import Path
 
 t_exp = 30  # sec
@@ -68,14 +70,14 @@ def main(arm, idx, shift=None):
             # Multiply by coefficient, preserving units
             fp.data[flux_col] = fp.data[flux_col].values * coeff_FP
         else:
-            print(f"Warning: Cannot modify flux - fp.data structure not as expected")
+            print("Warning: Cannot modify flux - fp.data structure not as expected")
             print(f"fp has attributes: {[attr for attr in dir(fp) if not attr.startswith('_')]}")
             if hasattr(fp, 'data'):
                 print(f"fp.data type: {type(fp.data)}")
                 print(f"fp.data attributes: {[attr for attr in dir(fp.data) if not attr.startswith('_')]}")
     except Exception as e:
         print(f"Warning: Failed to modify flux data: {e}")
-        print(f"Attempting alternative flux modification methods...")
+        print("Attempting alternative flux modification methods...")
     dark = ConstantFlux(0.00)
     # Reset all fibers to dark
     fibers = [dark] * n_fibers
