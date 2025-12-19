@@ -29,11 +29,11 @@ _original_prepare_raytracing = _raytracing.prepare_raytracing
 _current_fiber = None  # set by our wrapper before calling simulator.run()
 
 def _patched_prepare_raytracing(o, fiber, *args, **kwargs):
-    import builtins, io, sys
+    import builtins, io
     # Capture original output
     capture = io.StringIO()
     _original_print = builtins.print
-    builtins.print = lambda *a, **k: print(*a, **{**k, 'file': capture})
+    builtins.print = lambda *a, **k: _original_print(*a, **{**k, 'file': capture})
     try:
         result = _original_prepare_raytracing(o, fiber, *args, **kwargs)
     finally:
