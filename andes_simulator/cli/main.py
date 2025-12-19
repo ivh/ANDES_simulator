@@ -24,7 +24,7 @@ from .utils import (
 # Lightweight band list for CLI validation (avoids importing instruments module)
 ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
 
-SUBSLIT_CHOICES = ['all', 'even_odd', 'slitA', 'slitB', 'cal',
+SUBSLIT_CHOICES = ['all', 'even', 'odd', 'slitA', 'slitB', 'cal',
                    'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']
 
 

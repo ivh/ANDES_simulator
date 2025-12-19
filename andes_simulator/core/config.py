@@ -107,7 +107,7 @@ class SimulationConfig:
             raise ValueError(f"Invalid simulation_type '{self.simulation_type}'. Available: {valid_sim_types}")
         
         # Validate fiber mode
-        valid_fiber_modes = ["all", "single", "even_odd", "slitA", "slitB", "cal",
+        valid_fiber_modes = ["all", "single", "even", "odd", "slitA", "slitB", "cal",
                             "ifu", "ring0", "ring1", "ring2", "ring3", "ring4", "custom"]
         if self.fibers.mode not in valid_fiber_modes:
             raise ValueError(f"Invalid fiber mode '{self.fibers.mode}'. Available: {valid_fiber_modes}")
@@ -169,11 +169,12 @@ class SimulationConfig:
             else:
                 raise ValueError("Single fiber mode requires exactly one fiber number")
                 
-        elif self.fibers.mode == "even_odd":
-            # This mode requires special handling in the simulator
-            # Return all fibers, but the simulator will handle even/odd logic
-            fibers = list(range(1, n_fibers + 1))
-            
+        elif self.fibers.mode == "even":
+            fibers = [f for f in range(1, n_fibers + 1) if f % 2 == 0]
+
+        elif self.fibers.mode == "odd":
+            fibers = [f for f in range(1, n_fibers + 1) if f % 2 == 1]
+
         elif self.fibers.mode in ("slitA", "slitB", "cal"):
             # Slit modes: use appropriate config based on band
             if self.band in ['Y', 'J', 'H']:
@@ -253,8 +254,6 @@ class SimulationConfig:
         if self.simulation_type == "flat_field":
             if self.fibers.mode == "single" and fiber_num is not None:
                 filename = f"{self.band}_FF_fiber{fiber_num:02d}_{int(self.exposure_time)}s{wl_suffix}.fits"
-            elif self.fibers.mode == "even_odd":
-                filename = f"{self.band}_FF_{suffix}_{int(self.exposure_time)}s{wl_suffix}.fits"
             else:
                 filename = f"{self.band}_FF_{self.fibers.mode}_{int(self.exposure_time)}s{wl_suffix}.fits"
         elif self.simulation_type == "fabry_perot":

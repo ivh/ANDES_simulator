@@ -39,7 +39,7 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 - `--source`: Source type (`flat`, `fp`, `lfc`) or path to CSV spectrum file
 - `--hdf`: Custom HDF model file (infers band from wavelength content)
 - `--subslit`: Fiber selection for simulations
-  - All bands: `all`, `single`, `even_odd`, `slitA`, `slitB`, `cal`
+  - All bands: `all`, `single`, `even`, `odd`, `slitA`, `slitB`, `cal`
   - YJH only: `ifu`, `ring0`, `ring1`, `ring2`, `ring3`, `ring4`
 - `--mode`: Combination mode for post-processing (`all`, `even_odd`, `slits`, `custom`)
 - `--output-dir`: Use absolute paths for post-processing tools

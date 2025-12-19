@@ -63,7 +63,7 @@ uv run andes-sim simulate --help
 # Flat field - various subslits
 uv run andes-sim simulate --band R --source flat --subslit all --output-dir ../R/
 uv run andes-sim simulate --band R --source flat --fiber 21
-uv run andes-sim simulate --band R --source flat --subslit even_odd
+uv run andes-sim simulate --band R --source flat --subslit even
 uv run andes-sim simulate --band R --source flat --subslit slitA
 uv run andes-sim simulate --band R --source flat --subslit cal
 uv run andes-sim simulate --band Y --source flat --subslit ifu

@@ -230,19 +230,6 @@ class AndesSimulator:
         """
         n_fibers = self.instrument_config['n_fibers']
         illuminated_fibers = self.config.get_fiber_list()
-        
-        # Handle even/odd mode specially
-        if self.config.fibers.mode == "even_odd":
-            sources = self.source_factory.create_even_odd_sources(
-                self.config.source,
-                n_fibers,
-                self.config.band,
-                wl_min=self.config.wl_min,
-                wl_max=self.config.wl_max
-            )
-            return sources
-        
-        # Standard illumination pattern
         self.sources = self.source_factory.create_fiber_sources(
             self.config.source,
             n_fibers,
@@ -360,10 +347,6 @@ class AndesSimulator:
         # Set up simulator and sources
         self.setup_simulator()
         
-        # Handle even/odd mode specially
-        if self.config.fibers.mode == "even_odd":
-            return self.run_even_odd_simulation(output_path)
-        
         # Standard simulation
         sources = self.setup_sources()
         self.simulator.set_sources(sources)
@@ -382,48 +365,6 @@ class AndesSimulator:
         
         self.logger.info("Simulation completed")
         return result
-    
-    def run_even_odd_simulation(self, output_path: Optional[Path] = None) -> Dict[str, Any]:
-        """
-        Run even/odd fiber simulation (creates two output files).
-
-        Parameters
-        ----------
-        output_path : Path, optional
-            Base output path
-
-        Returns
-        -------
-        Dict
-            Results for even and odd fiber configurations
-        """
-        sources_dict = self.setup_sources()
-        results = {}
-
-        for mode in ['even', 'odd']:
-
-            # Create fresh simulator for each run to avoid state contamination
-            self.setup_simulator()
-
-            # Set sources for this mode
-            self.simulator.set_sources(sources_dict[mode])
-
-            # Set output path
-            if output_path is None:
-                out_path = self.config.get_output_path(suffix=mode)
-            else:
-                out_path = output_path.parent / f"{output_path.stem}_{mode}{output_path.suffix}"
-
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            self.simulator.set_output(str(out_path), overwrite=self.config.output.overwrite)
-
-            # Run simulation
-            result = self.simulator.run()
-            results[mode] = result
-
-            self.logger.info(f"{mode.capitalize()} simulation completed: {out_path}")
-
-        return results
     
     def run_single_fiber_batch(self, output_dir: Optional[Path] = None) -> Dict[int, Any]:
         """
