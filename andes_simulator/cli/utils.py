@@ -75,7 +75,7 @@ def build_config_from_options(
     hdf: Optional[str] = None,
     wl_min: Optional[float] = None,
     wl_max: Optional[float] = None,
-    fib_eff: Optional[str] = None
+    fib_eff: str = "0.9-0.95"
 ):
     """
     Build a SimulationConfig from CLI options.

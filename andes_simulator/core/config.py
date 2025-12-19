@@ -75,7 +75,7 @@ class SimulationConfig:
     thermal_model: Optional[str] = None     # For thermal variations
     wl_min: Optional[float] = None          # Minimum wavelength in nm
     wl_max: Optional[float] = None          # Maximum wavelength in nm
-    fib_eff: Optional[str] = None           # Fiber efficiency: "0.9" or "0.7-0.9" (random)
+    fib_eff: str = "0.9-0.95"                # Fiber efficiency: "0.9" or "0.7-0.9" (random)
     
     # Post-processing
     psf: PSFConfig = field(default_factory=PSFConfig)

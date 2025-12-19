@@ -22,6 +22,30 @@ from .config import SimulationConfig
 from .instruments import get_hdf_model_path, BAND_WAVELENGTH_RANGES
 from .sources import SourceFactory, SPEED_OF_LIGHT
 
+# Monkey-patch pyechelle to include fiber number in order logging
+# Fragile: depends on pyechelle internals. If broken, just remove this block.
+import pyechelle.raytracing as _raytracing
+_original_prepare_raytracing = _raytracing.prepare_raytracing
+_current_fiber = None  # set by our wrapper before calling simulator.run()
+
+def _patched_prepare_raytracing(o, fiber, *args, **kwargs):
+    import builtins, io, sys
+    # Capture original output
+    capture = io.StringIO()
+    _original_print = builtins.print
+    builtins.print = lambda *a, **k: print(*a, **{**k, 'file': capture})
+    try:
+        result = _original_prepare_raytracing(o, fiber, *args, **kwargs)
+    finally:
+        builtins.print = _original_print
+    # Reprint with fiber prefix
+    line = capture.getvalue().strip()
+    if line:
+        print(f"Fiber {fiber:2d} {line}")
+    return result
+
+_raytracing.prepare_raytracing = _patched_prepare_raytracing
+
 
 class AndesSimulator:
     """
@@ -351,7 +375,6 @@ class AndesSimulator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         self.simulator.set_output(str(output_path), overwrite=self.config.output.overwrite)
         
-        self.logger.info(f"Running {self.config.simulation_type} simulation")
         self.logger.info(f"Output: {output_path}")
         
         # Run simulation
@@ -378,7 +401,6 @@ class AndesSimulator:
         results = {}
 
         for mode in ['even', 'odd']:
-            self.logger.info(f"Running {mode} fiber simulation")
 
             # Create fresh simulator for each run to avoid state contamination
             self.setup_simulator()
@@ -434,8 +456,6 @@ class AndesSimulator:
             if fiber_num in self.config.fibers.skip_fibers:
                 continue
                 
-            self.logger.info(f"Simulating fiber {fiber_num}")
-            
             # Use source factory to create sources for this single fiber
             sources = self.source_factory.create_fiber_sources(
                 self.config.source,

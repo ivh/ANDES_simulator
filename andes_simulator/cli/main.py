@@ -53,7 +53,8 @@ def common_options(f):
                      help='HDF model file (infers band if --band not given)')(f)
     f = click.option('--wl-min', type=float, help='Minimum wavelength in nm')(f)
     f = click.option('--wl-max', type=float, help='Maximum wavelength in nm')(f)
-    f = click.option('--fib-eff', type=str, help='Fiber efficiency: single value (0.9) or range (0.7-0.9)')(f)
+    f = click.option('--fib-eff', type=str, default='0.9-0.95', show_default=True,
+                     help='Fiber efficiency: single value (0.9) or range (0.7-0.9)')(f)
     return f
 
 
