@@ -20,17 +20,21 @@ from ..core.instruments import get_instrument_config
 class PSFProcessor:
     """
     Handles PSF convolution processing for ANDES simulation outputs.
-    
+
     Provides customizable 2D Gaussian kernels with edge-blanking effects
     and supports parallel processing of multiple fiber outputs.
     """
-    
-    def __init__(self, 
+
+    # Headers to propagate from input files
+    PROPAGATE_HEADERS = ['HDFMODEL', 'SIMTYPE', 'SRCTYPE', 'SRCFLUX', 'SRCSCALE',
+                         'EXPTIME', 'VSHIFT', 'FIBEFF', 'WL_MIN', 'WL_MAX']
+
+    def __init__(self,
                  band: str,
                  project_root: Optional[Path] = None):
         """
         Initialize PSF processor.
-        
+
         Parameters
         ----------
         band : str
@@ -40,16 +44,17 @@ class PSFProcessor:
         """
         self.band = band
         self.instrument_config = get_instrument_config(band)
-        
+
         if project_root is None:
             self.project_root = Path(__file__).parent.parent.parent
         else:
             self.project_root = project_root
-        
+
         # Get band-specific parameters
         self.detector_size = self.instrument_config['detector_size']
         self.sampling = self.instrument_config.get('sampling', 1.0)
         self.skip_fibers = self.instrument_config.get('skip_fibers', [])
+        self._source_header = None  # Will store headers from first loaded file
     
     def create_gaussian_kernel(self,
                               dimx: int = 4, 
@@ -161,7 +166,12 @@ class PSFProcessor:
         # Load image data
         with fits.open(matching_files[0]) as hdul:
             image_data = hdul[0].data
-        
+            # Capture headers from first successfully loaded file
+            if self._source_header is None:
+                self._source_header = {k: hdul[0].header.get(k)
+                                       for k in self.PROPAGATE_HEADERS
+                                       if k in hdul[0].header}
+
         # Apply PSF convolution if requested
         if kernel_params is not None:
             kernel = self.create_gaussian_kernel(*kernel_params)
@@ -262,7 +272,13 @@ class PSFProcessor:
         
         hdu.header['BAND'] = self.band
         hdu.header['DETSIZE'] = f"{self.detector_size[0]}x{self.detector_size[1]}"
-        
+
+        # Propagate headers from source files
+        if self._source_header:
+            for key, value in self._source_header.items():
+                if value is not None:
+                    hdu.header[key] = value
+
         # Write to file
         hdu.writeto(str(output_path), overwrite=True)
         print(f"Saved processed image: {output_path}")

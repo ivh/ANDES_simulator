@@ -19,11 +19,15 @@ from ..core.instruments import get_instrument_config
 class FiberCombiner:
     """
     Handles combination of individual fiber simulation outputs.
-    
+
     Provides tools for summing fiber outputs with various selection
     criteria and weighting schemes for integrated detector analysis.
     """
-    
+
+    # Headers to propagate from input files to combined output
+    PROPAGATE_HEADERS = ['HDFMODEL', 'SIMTYPE', 'SRCTYPE', 'SRCFLUX', 'SRCSCALE',
+                         'EXPTIME', 'VSHIFT', 'FIBEFF', 'WL_MIN', 'WL_MAX']
+
     def __init__(self,
                  band: str,
                  project_root: Optional[Path] = None,
@@ -60,6 +64,7 @@ class FiberCombiner:
         config_size = self.instrument_config['detector_size']
         self.detector_size = (config_size[1], config_size[0])
         self.skip_fibers = self.instrument_config.get('skip_fibers', [])
+        self._source_header = None  # Will store headers from first loaded file
     
     def load_fiber_data(self, 
                        fiber_num: int,
@@ -96,6 +101,11 @@ class FiberCombiner:
         # Load the first matching file
         try:
             with fits.open(matching_files[0]) as hdul:
+                # Capture headers from first successfully loaded file
+                if self._source_header is None:
+                    self._source_header = {k: hdul[0].header.get(k)
+                                           for k in self.PROPAGATE_HEADERS
+                                           if k in hdul[0].header}
                 return hdul[0].data.copy()
         except Exception as e:
             print(f"Error loading fiber {fiber_num} data: {e}")
@@ -315,12 +325,18 @@ class FiberCombiner:
         hdu.header['NFIBERS'] = self.n_fibers
         hdu.header['DETSIZE'] = f"{self.detector_size[0]}x{self.detector_size[1]}"
         hdu.header['COMBINED'] = True
-        
+
+        # Propagate headers from source files
+        if self._source_header:
+            for key, value in self._source_header.items():
+                if value is not None:
+                    hdu.header[key] = value
+
         if combination_info:
             for key, value in combination_info.items():
                 if isinstance(value, (int, float, str, bool)):
                     hdu.header[key.upper()[:8]] = value  # FITS keyword limit
-        
+
         if self.skip_fibers:
             hdu.header['SKIPFIB'] = ','.join(map(str, self.skip_fibers))
         
