@@ -6,7 +6,7 @@ authors = [
     {name = "ANDES E2E Team", email = "andes@eso.org"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 keywords = ["astronomy", "spectrograph", "simulation", "andes", "e2e"]
 classifiers = [
