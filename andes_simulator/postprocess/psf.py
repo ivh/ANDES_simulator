@@ -7,6 +7,7 @@ with various edge-blanking effects and kernel configurations.
 
 import numpy as np
 import random
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 from astropy.io import fits
@@ -270,6 +271,8 @@ class PSFProcessor:
         else:
             hdu.header['PSFCONV'] = False
         
+        hdu.header['DATE-OBS'] = (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), 'Observation date')
+        hdu.header['INSTRUME'] = ('ANDES', 'Instrument name')
         hdu.header['BAND'] = self.band
         hdu.header['DETSIZE'] = f"{self.detector_size[0]}x{self.detector_size[1]}"
 

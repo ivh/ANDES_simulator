@@ -7,6 +7,7 @@ source setup, instrument configuration, and output generation.
 
 import logging
 import numpy as np
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 
@@ -180,6 +181,8 @@ class AndesSimulator:
         with fits.open(fits_path, mode='update') as hdul:
             hdr = hdul[0].header
 
+            hdr['DATE-OBS'] = (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), 'Observation date')
+            hdr['INSTRUME'] = ('ANDES', 'Instrument name')
             hdr['BAND'] = (self.config.band, 'Spectral band')
             hdr['SIMTYPE'] = (self.config.simulation_type, 'Simulation type')
             hdr['EXPTIME'] = (self.config.exposure_time, '[s] Exposure time')
