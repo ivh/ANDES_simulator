@@ -22,7 +22,7 @@ from pyechelle.spectrograph import InteractiveZEMAX
 from astropy.io import fits
 
 from .config import SimulationConfig
-from .instruments import get_hdf_model_path, BAND_WAVELENGTH_RANGES
+from .instruments import get_hdf_model_path, get_band_wavelength_range
 from .sources import SourceFactory, SPEED_OF_LIGHT
 
 # Monkey-patch pyechelle to include fiber number in order logging
@@ -135,7 +135,7 @@ class AndesSimulator:
         ccd_index = 1
 
         # Get wavelength range for this band (convert nm to microns)
-        wl_min_nm, wl_max_nm = BAND_WAVELENGTH_RANGES[self.config.band]
+        wl_min_nm, wl_max_nm = get_band_wavelength_range(self.config.band)
         wl_min_um = wl_min_nm / 1000.0
         wl_max_um = wl_max_nm / 1000.0
         wavelengths = np.array([wl_min_um, (wl_min_um + wl_max_um) / 2, wl_max_um])

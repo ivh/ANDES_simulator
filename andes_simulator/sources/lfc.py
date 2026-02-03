@@ -11,18 +11,7 @@ import numpy as np
 
 from pyechelle.sources import CSVSource, ConstantPhotonFlux
 
-
-# Wavelength ranges for each band (nm) - approximate usable ranges
-BAND_WAVELENGTH_RANGES = {
-    'U': (310, 390),
-    'B': (390, 490),
-    'V': (490, 590),
-    'R': (620, 950),
-    'IZ': (820, 1000),
-    'Y': (1000, 1100),
-    'J': (1150, 1350),
-    'H': (1450, 1800),
-}
+from ..core.instruments import get_band_wavelength_range, INSTRUMENTS
 
 # Approximate echelle order numbers at band center (from ZEMAX models)
 BAND_ORDER_ESTIMATES = {
@@ -74,8 +63,8 @@ class LFCSource:
         else:
             self.project_root = project_root
 
-        if band not in BAND_WAVELENGTH_RANGES:
-            raise ValueError(f"Unknown band '{band}'. Available: {list(BAND_WAVELENGTH_RANGES.keys())}")
+        if band not in INSTRUMENTS:
+            raise ValueError(f"Unknown band '{band}'. Available: {list(INSTRUMENTS.keys())}")
 
         self._temp_files: List[Any] = []
         self._cached_source = None
@@ -112,7 +101,7 @@ class LFCSource:
         fluxes : ndarray
             Flux values (all equal to flux_per_line)
         """
-        band_wl_min, band_wl_max = BAND_WAVELENGTH_RANGES[self.band]
+        band_wl_min, band_wl_max = get_band_wavelength_range(self.band, self.project_root)
         delta_v = self._calculate_velocity_spacing()
         c = 299792458.0
 
@@ -256,7 +245,7 @@ class LFCSource:
 
         return {
             'band': self.band,
-            'wavelength_range_nm': BAND_WAVELENGTH_RANGES[self.band],
+            'wavelength_range_nm': get_band_wavelength_range(self.band, self.project_root),
             'n_lines': len(wavelengths),
             'velocity_spacing_m_s': delta_v,
             'velocity_spacing_km_s': delta_v / 1000,

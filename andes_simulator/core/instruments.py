@@ -124,17 +124,8 @@ INSTRUMENTS = {
     }
 }
 
-# Band wavelength ranges in nm
-BAND_WAVELENGTH_RANGES = {
-    'U': (310, 390),
-    'B': (390, 490),
-    'V': (490, 620),
-    'R': (620, 800),
-    'IZ': (800, 1000),
-    'Y': (1000, 1150),
-    'J': (1150, 1350),
-    'H': (1450, 1800),
-}
+# Cache for wavelength ranges read from HDF files
+_wavelength_range_cache: Dict[str, tuple] = {}
 
 # Telescope configuration (ELT)
 TELESCOPE = {
@@ -258,7 +249,79 @@ def get_hdf_model_path(band: str, model_type: str = 'default', project_root: Pat
     return project_root / 'HDF' / f'{model_name}.hdf'
 
 
-def infer_band_from_hdf(hdf_path: Path) -> str:
+def _read_wavelength_range_from_hdf(hdf_path: Path) -> tuple:
+    """
+    Read wavelength range from an HDF model file.
+
+    Returns
+    -------
+    tuple
+        (wl_min, wl_max) in nm
+    """
+    import h5py
+
+    with h5py.File(hdf_path, 'r') as f:
+        ccd = f['CCD_1']
+        fiber_key = next(k for k in ccd.keys() if k.startswith('fiber_'))
+        fiber = ccd[fiber_key]
+
+        wavelengths = []
+        for key in fiber.keys():
+            if key.startswith('psf_order'):
+                psf_grp = fiber[key]
+                for wl_key in psf_grp.keys():
+                    if wl_key.startswith('wavelength_'):
+                        wl = float(wl_key.replace('wavelength_', ''))
+                        wavelengths.append(wl)
+
+    if not wavelengths:
+        raise ValueError(f"No wavelength data found in {hdf_path}")
+
+    # Convert micrometers to nm
+    return min(wavelengths) * 1000, max(wavelengths) * 1000
+
+
+def get_band_wavelength_range(band: str, project_root: Path = None) -> tuple:
+    """
+    Get wavelength range for a band from its default HDF model.
+
+    Results are cached to avoid repeated file reads.
+
+    Parameters
+    ----------
+    band : str
+        Spectral band name (U, B, V, R, IZ, Y, J, H)
+    project_root : Path, optional
+        Project root directory
+
+    Returns
+    -------
+    tuple
+        (wl_min, wl_max) in nm
+    """
+    if band in _wavelength_range_cache:
+        return _wavelength_range_cache[band]
+
+    hdf_path = get_hdf_model_path(band, 'default', project_root)
+    wl_range = _read_wavelength_range_from_hdf(hdf_path)
+    _wavelength_range_cache[band] = wl_range
+    return wl_range
+
+
+def get_all_band_wavelength_ranges(project_root: Path = None) -> Dict[str, tuple]:
+    """
+    Get wavelength ranges for all bands.
+
+    Returns
+    -------
+    dict
+        Mapping of band name to (wl_min, wl_max) in nm
+    """
+    return {band: get_band_wavelength_range(band, project_root)
+            for band in INSTRUMENTS.keys()}
+
+
+def infer_band_from_hdf(hdf_path: Path, project_root: Path = None) -> str:
     """
     Infer spectral band from HDF file by reading wavelength coverage.
 
@@ -266,6 +329,8 @@ def infer_band_from_hdf(hdf_path: Path) -> str:
     ----------
     hdf_path : Path
         Path to HDF model file
+    project_root : Path, optional
+        Project root directory (for reading default HDF models)
 
     Returns
     -------
@@ -277,41 +342,19 @@ def infer_band_from_hdf(hdf_path: Path) -> str:
     ValueError
         If band cannot be determined from wavelength range
     """
-    import h5py
-
-    with h5py.File(hdf_path, 'r') as f:
-        ccd = f['CCD_1']
-        fiber_key = next(k for k in ccd.keys() if k.startswith('fiber_'))
-        fiber = ccd[fiber_key]
-
-        # Collect wavelengths from PSF entries
-        wavelengths = []
-        for key in fiber.keys():
-            if key.startswith('psf_order'):
-                psf_grp = fiber[key]
-                for wl_key in psf_grp.keys():
-                    if wl_key.startswith('wavelength_'):
-                        # Parse wavelength from key name (in micrometers)
-                        wl = float(wl_key.replace('wavelength_', ''))
-                        wavelengths.append(wl)
-                        break  # One sample per order is enough
-
-    if not wavelengths:
-        raise ValueError(f"No wavelength data found in {hdf_path}")
-
-    # Wavelengths in micrometers, convert to nm
-    wl_min = min(wavelengths) * 1000
-    wl_max = max(wavelengths) * 1000
+    wl_min, wl_max = _read_wavelength_range_from_hdf(hdf_path)
     wl_center = (wl_min + wl_max) / 2
 
-    for band, (low, high) in BAND_WAVELENGTH_RANGES.items():
+    for band in INSTRUMENTS.keys():
+        low, high = get_band_wavelength_range(band, project_root)
         if low <= wl_center <= high:
             return band
 
     raise ValueError(f"Cannot infer band from wavelength range {wl_min:.0f}-{wl_max:.0f}nm")
 
 
-def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None) -> str:
+def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None,
+                                project_root: Path = None) -> str:
     """
     Infer spectral band from wavelength limits.
 
@@ -321,6 +364,8 @@ def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None) -> s
         Minimum wavelength in nm
     wl_max : float, optional
         Maximum wavelength in nm
+    project_root : Path, optional
+        Project root directory
 
     Returns
     -------
@@ -336,8 +381,8 @@ def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None) -> s
         raise ValueError("At least one of wl_min or wl_max must be provided")
 
     matching_bands = []
-    for band, (low, high) in BAND_WAVELENGTH_RANGES.items():
-        # Check if any part of the requested range overlaps with this band
+    for band in INSTRUMENTS.keys():
+        low, high = get_band_wavelength_range(band, project_root)
         req_min = wl_min if wl_min is not None else low
         req_max = wl_max if wl_max is not None else high
         if req_min <= high and req_max >= low:
@@ -354,7 +399,8 @@ def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None) -> s
     return matching_bands[0]
 
 
-def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = None) -> None:
+def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = None,
+                              project_root: Path = None) -> None:
     """
     Validate that wavelength limits fall within the band's range.
 
@@ -366,6 +412,8 @@ def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = N
         Minimum wavelength in nm
     wl_max : float, optional
         Maximum wavelength in nm
+    project_root : Path, optional
+        Project root directory
 
     Raises
     ------
@@ -375,17 +423,17 @@ def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = N
     if wl_min is None and wl_max is None:
         return
 
-    if band not in BAND_WAVELENGTH_RANGES:
+    if band not in INSTRUMENTS:
         raise ValueError(f"Unknown band '{band}'")
 
-    band_min, band_max = BAND_WAVELENGTH_RANGES[band]
+    band_min, band_max = get_band_wavelength_range(band, project_root)
 
     if wl_min is not None and wl_min < band_min:
         raise ValueError(
-            f"wl_min={wl_min}nm is below {band}-band range ({band_min}-{band_max}nm)")
+            f"wl_min={wl_min}nm is below {band}-band range ({band_min:.1f}-{band_max:.1f}nm)")
     if wl_max is not None and wl_max > band_max:
         raise ValueError(
-            f"wl_max={wl_max}nm is above {band}-band range ({band_min}-{band_max}nm)")
+            f"wl_max={wl_max}nm is above {band}-band range ({band_min:.1f}-{band_max:.1f}nm)")
     if wl_min is not None and wl_max is not None and wl_min >= wl_max:
         raise ValueError(f"wl_min={wl_min}nm must be less than wl_max={wl_max}nm")
 
