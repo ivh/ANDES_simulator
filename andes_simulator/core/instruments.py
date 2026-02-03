@@ -94,7 +94,7 @@ INSTRUMENTS = {
         'detector_size': (9216, 9232),
         'pixel_size': 15,
         'hdf_models': {
-            'default': 'ANDES_123_U3'
+            'default': 'ANDES_U_v88'
         },
         'fp_spectrum': 'FP_simulation_UBV_finesse_23.csv',
         'sampling': 4.0,
@@ -105,7 +105,7 @@ INSTRUMENTS = {
         'detector_size': (9216, 9232),
         'pixel_size': 15,
         'hdf_models': {
-            'default': 'ANDES_123_B3'
+            'default': 'ANDES_B_v88'
         },
         'fp_spectrum': 'FP_simulation_UBV_finesse_26.csv',
         'sampling': 4.0,
@@ -116,7 +116,7 @@ INSTRUMENTS = {
         'detector_size': (9216, 9232),
         'pixel_size': 15,
         'hdf_models': {
-            'default': 'ANDES_123_V3'
+            'default': 'ANDES_V_v88'
         },
         'fp_spectrum': 'FP_simulation_UBV_finesse_26.csv',
         'sampling': 4.0,

@@ -126,15 +126,11 @@ def build_config_from_options(
     
     # Build source config
     source_kwargs = {'type': source_type, 'flux': flux, 'flux_unit': flux_unit}
-    if source_type in ('fabry_perot', 'constant'):
-        # For FP and constant sources, total scaling = flux × scaling
-        effective_scaling = flux * (scaling if scaling is not None else 1.0)
-        source_kwargs['scaling_factor'] = effective_scaling
-        if source_type == 'constant':
-            # For constant sources, the flux IS the scaling factor
-            source_kwargs['flux'] = effective_scaling
-    elif scaling is not None:
-        source_kwargs['scaling_factor'] = scaling
+    # flux multiplies scaling for all source types
+    effective_scaling = flux * (scaling if scaling is not None else 1.0)
+    source_kwargs['scaling_factor'] = effective_scaling
+    if source_type == 'constant':
+        source_kwargs['flux'] = effective_scaling
     if spectrum_path is not None:
         source_kwargs['filepath'] = str(spectrum_path)
     
