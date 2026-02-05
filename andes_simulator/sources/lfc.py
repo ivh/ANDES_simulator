@@ -11,19 +11,7 @@ import numpy as np
 
 from pyechelle.sources import CSVSource, ConstantPhotonFlux
 
-from ..core.instruments import get_band_wavelength_range, INSTRUMENTS
-
-# Approximate echelle order numbers at band center (from ZEMAX models)
-BAND_ORDER_ESTIMATES = {
-    'U': 130,
-    'B': 100,
-    'V': 85,
-    'R': 90,   # orders 81-98
-    'IZ': 55,
-    'Y': 118,  # orders 109-127
-    'J': 99,   # orders 90-108
-    'H': 76,   # orders 68-83
-}
+from ..core.instruments import get_band_wavelength_range, INSTRUMENTS, BAND_ORDER_ESTIMATES
 
 
 class LFCSource:

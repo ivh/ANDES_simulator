@@ -137,9 +137,14 @@ def cli(ctx, verbose, project_root):
 @common_options
 @click.option('--output-name', type=str, help='Output filename (overrides default)')
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
+@click.option('--finesse', type=float, default=None,
+              help='FP finesse (default: band-dependent)')
+@click.option('--fp-gap', type=float, default=None,
+              help='FP gap thickness in mm (default: auto-computed for ~100 lines/order)')
 @click.pass_context
 def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
-             output_dir, output_name, hdf, wl_min, wl_max, fib_eff, velocity_shift, dry_run):
+             output_dir, output_name, hdf, wl_min, wl_max, fib_eff, velocity_shift,
+             finesse, fp_gap, dry_run):
     """Run detector simulation with specified source.
 
     Source types:
@@ -204,7 +209,9 @@ def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
         wl_min=wl_min,
         wl_max=wl_max,
         fib_eff=fib_eff,
-        spectrum_path=spectrum_path
+        spectrum_path=spectrum_path,
+        finesse=finesse,
+        fp_gap=fp_gap,
     )
 
     run_simulation_command(

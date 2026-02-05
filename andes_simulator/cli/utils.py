@@ -75,7 +75,9 @@ def build_config_from_options(
     hdf: Optional[str] = None,
     wl_min: Optional[float] = None,
     wl_max: Optional[float] = None,
-    fib_eff: str = "0.9-0.95"
+    fib_eff: str = "0.9-0.95",
+    finesse: Optional[float] = None,
+    fp_gap: Optional[float] = None,
 ):
     """
     Build a SimulationConfig from CLI options.
@@ -133,6 +135,11 @@ def build_config_from_options(
         source_kwargs['flux'] = effective_scaling
     if spectrum_path is not None:
         source_kwargs['filepath'] = str(spectrum_path)
+    if source_type == 'fabry_perot':
+        if finesse is not None:
+            source_kwargs['finesse'] = finesse
+        if fp_gap is not None:
+            source_kwargs['fp_gap_mm'] = fp_gap
     
     # Build output config (default to current working directory)
     output_directory = str(output_dir) if output_dir else str(Path.cwd())
@@ -175,6 +182,14 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
         click.echo(f"  Flux: {config.source.flux}")
     elif config.source.type == "fabry_perot":
         click.echo(f"  Scaling: {config.source.scaling_factor:.2e}")
+        if config.source.finesse is not None:
+            click.echo(f"  Finesse: {config.source.finesse}")
+        else:
+            click.echo(f"  Finesse: band default")
+        if config.source.fp_gap_mm is not None:
+            click.echo(f"  FP gap: {config.source.fp_gap_mm} mm")
+        else:
+            click.echo(f"  FP gap: auto-computed")
     elif config.source.type == "lfc":
         click.echo(f"  LFC flux per line: {config.source.scaling_factor:.2e} ph/s")
     elif config.source.type == "csv":

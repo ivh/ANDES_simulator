@@ -8,6 +8,24 @@ band-specific parameters for all ANDES spectral channels.
 from pathlib import Path
 from typing import Dict, List, Any
 
+# Approximate echelle order numbers at band center (from ZEMAX models)
+BAND_ORDER_ESTIMATES = {
+    'U': 130,
+    'B': 100,
+    'V': 85,
+    'R': 90,   # orders 81-98
+    'IZ': 55,
+    'Y': 118,  # orders 109-127
+    'J': 99,   # orders 90-108
+    'H': 76,   # orders 68-83
+}
+
+# Default Fabry-Perot finesse per band (matching original CSV assignments)
+DEFAULT_FINESSE = {
+    'U': 23, 'R': 23, 'IZ': 23,
+    'B': 26, 'V': 26, 'Y': 26, 'J': 26, 'H': 26,
+}
+
 # Instrument configurations for each spectral band
 INSTRUMENTS = {
     # Near-infrared bands (75 fibers)
@@ -23,7 +41,6 @@ INSTRUMENTS = {
             'Y': 'HIRES_Y_21jan2022_sconf_noap.zmx'
         },
         'diffraction_orders': list(range(109, 127)),
-        'fp_spectrum': 'FP_simulation_YJH_finesse_26.csv',
         'sampling': 2.1,
         'skip_fibers': [3, 4, 36, 37, 39, 40, 72, 73]
     },
@@ -38,7 +55,6 @@ INSTRUMENTS = {
             'J': 'HIRES_J_21jan2022_sconf_noap.zmx'
         },
         'diffraction_orders': list(range(90, 108)),
-        'fp_spectrum': 'FP_simulation_YJH_finesse_26.csv',
         'sampling': 2.1,
         'skip_fibers': [3, 4, 36, 37, 39, 40, 72, 73]
     },
@@ -53,7 +69,6 @@ INSTRUMENTS = {
             'H': 'HIRES_H_21jan2022_sconf.zmx'
         },
         'diffraction_orders': list(range(68, 83)),
-        'fp_spectrum': 'FP_simulation_YJH_finesse_26.csv',
         'sampling': 2.1,
         'skip_fibers': [3, 4, 36, 37, 39, 40, 72, 73]
     },
@@ -70,7 +85,6 @@ INSTRUMENTS = {
                 'Andes_full_F18A33_win_jmr_MC_T0108_Rband_P0_cfg1'
             ]
         },
-        'fp_spectrum': 'FP_simulation_RIZ_finesse_23.csv',
         'sampling': 4.0,
         'skip_fibers': [32, 35]
     },
@@ -85,7 +99,6 @@ INSTRUMENTS = {
                 'Andes_full_F18A33_win_jmr_MC_T0028_IZband_P0'
             ]
         },
-        'fp_spectrum': 'FP_simulation_RIZ_finesse_23.csv',
         'sampling': 4.0,
         'skip_fibers': [32, 35]
     },
@@ -96,7 +109,6 @@ INSTRUMENTS = {
         'hdf_models': {
             'default': 'ANDES_U_v88'
         },
-        'fp_spectrum': 'FP_simulation_UBV_finesse_23.csv',
         'sampling': 4.0,
         'skip_fibers': [32, 35]
     },
@@ -107,7 +119,6 @@ INSTRUMENTS = {
         'hdf_models': {
             'default': 'ANDES_B_v88'
         },
-        'fp_spectrum': 'FP_simulation_UBV_finesse_26.csv',
         'sampling': 4.0,
         'skip_fibers': [32, 35]
     },
@@ -118,7 +129,6 @@ INSTRUMENTS = {
         'hdf_models': {
             'default': 'ANDES_V_v88'
         },
-        'fp_spectrum': 'FP_simulation_UBV_finesse_26.csv',
         'sampling': 4.0,
         'skip_fibers': [32, 35]
     }
@@ -438,24 +448,3 @@ def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = N
         raise ValueError(f"wl_min={wl_min}nm must be less than wl_max={wl_max}nm")
 
 
-def get_sed_path(band: str, project_root: Path = None) -> Path:
-    """
-    Get the path to the Fabry-Perot SED file for a band.
-    
-    Parameters
-    ----------
-    band : str
-        Spectral band name
-    project_root : Path, optional
-        Project root directory
-        
-    Returns
-    -------
-    Path
-        Full path to SED file
-    """
-    if project_root is None:
-        project_root = Path(__file__).parent.parent.parent
-    
-    config = get_instrument_config(band)
-    return project_root / 'SED' / config['fp_spectrum']

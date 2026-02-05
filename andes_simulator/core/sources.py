@@ -10,11 +10,9 @@ import tempfile
 from pathlib import Path
 from typing import List, Any, Optional
 
-import pandas as pd
 from pyechelle.sources import ConstantPhotonFlux, CSVSource
 
 from .config import SourceConfig
-from .instruments import get_sed_path
 from ..sources.wavelength_filter import WavelengthFilteredSource
 
 # Physical constants
@@ -222,39 +220,17 @@ class SourceFactory:
         wl_min: Optional[float] = None,
         wl_max: Optional[float] = None
     ) -> CSVSource:
-        """Create a Fabry-Perot source with scaled spectrum."""
-        sed_path = get_sed_path(band, self.project_root)
-        
-        if not sed_path.exists():
-            raise FileNotFoundError(f"Fabry-Perot SED file not found: {sed_path}")
-        
-        # Load and scale the FP spectrum
-        df = pd.read_csv(sed_path, header=None, names=['wavelength', 'flux'])
-        df['flux'] *= config.scaling_factor
-        
-        if wl_min is not None:
-            df = df[df['wavelength'] >= wl_min]
-        if wl_max is not None:
-            df = df[df['wavelength'] <= wl_max]
-        if df.empty:
-            raise ValueError(
-                f"Fabry-Perot spectrum has no samples within {wl_min}-{wl_max} nm"
-            )
-        
-        # Write to temporary file
-        temp_file = tempfile.NamedTemporaryFile(
-            mode='w', suffix='.csv', delete=False
+        """Create a synthetic Fabry-Perot source with Airy profile."""
+        from ..sources.fabry_perot import FabryPerotSource
+
+        fp = FabryPerotSource(
+            band=band,
+            finesse=config.finesse,
+            gap_mm=config.fp_gap_mm,
+            scaling_factor=config.scaling_factor,
+            project_root=self.project_root,
         )
-        df.to_csv(temp_file.name, index=False, header=False)
-        temp_file.close()
-        self._temp_files.append(temp_file)
-        
-        return CSVSource(
-            file_path=temp_file.name,
-            wavelength_units="nm",
-            flux_units="ph/s",
-            list_like=False
-        )
+        return fp._create_fp_source(wl_min=wl_min, wl_max=wl_max)
 
     def _create_lfc_source(
         self,
