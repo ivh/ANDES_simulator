@@ -180,6 +180,19 @@ class FabryPerotSource:
             }
         return configs
 
+    def get_peak_wavelengths(self,
+                             wl_min: Optional[float] = None,
+                             wl_max: Optional[float] = None) -> np.ndarray:
+        """Exact peak wavelengths: lambda_k = 2*n*d / k for integer k."""
+        gap_nm = self.gap_mm * 1e6
+        lo = wl_min if wl_min is not None else self.wl_min
+        hi = wl_max if wl_max is not None else self.wl_max
+        k_min = int(np.ceil(2.0 * self.n_refr * gap_nm / hi))
+        k_max = int(np.floor(2.0 * self.n_refr * gap_nm / lo))
+        k = np.arange(k_max, k_min - 1, -1)
+        peaks = 2.0 * self.n_refr * gap_nm / k
+        return peaks
+
     def get_spectrum_info(self) -> dict:
         """Summary of the synthetic FP parameters."""
         gap_nm = self.gap_mm * 1e6

@@ -41,6 +41,7 @@ class SourceFactory:
         self.logger = logging.getLogger(__name__)
         self._temp_files: List[Any] = []  # Track temp files for cleanup
         self._filtered_cache = {}
+        self._fp_source = None
     
     def create_source(self, config: SourceConfig, band: str = None,
                       wl_min: Optional[float] = None,
@@ -213,6 +214,32 @@ class SourceFactory:
         
         return source
     
+    def _get_fp_source(self, config: SourceConfig, band: str,
+                       wl_min: Optional[float] = None,
+                       wl_max: Optional[float] = None):
+        """Get or create the cached FabryPerotSource for this band."""
+        if self._fp_source is None:
+            from ..sources.fabry_perot import FabryPerotSource
+
+            self._fp_source = FabryPerotSource(
+                band=band,
+                finesse=config.finesse,
+                gap_mm=config.fp_gap_mm,
+                scaling_factor=config.scaling_factor,
+                project_root=self.project_root,
+            )
+            # generate spectrum CSV once
+            self._fp_source._create_fp_source(wl_min=wl_min, wl_max=wl_max)
+            info = self._fp_source.get_spectrum_info()
+            self.logger.info(
+                "FP source: finesse=%.0f, gap=%.4f mm, FSR=%.4f nm, "
+                "FWHM=%.5f nm, %d samples over %.1f-%.1f nm",
+                info['finesse'], info['gap_mm'],
+                info['fsr_nm_at_center'], info['fwhm_nm_at_center'],
+                info['n_samples'], *info['wavelength_range_nm'],
+            )
+        return self._fp_source
+
     def _create_fabry_perot_source(
         self,
         config: SourceConfig,
@@ -220,16 +247,8 @@ class SourceFactory:
         wl_min: Optional[float] = None,
         wl_max: Optional[float] = None
     ) -> CSVSource:
-        """Create a synthetic Fabry-Perot source with Airy profile."""
-        from ..sources.fabry_perot import FabryPerotSource
-
-        fp = FabryPerotSource(
-            band=band,
-            finesse=config.finesse,
-            gap_mm=config.fp_gap_mm,
-            scaling_factor=config.scaling_factor,
-            project_root=self.project_root,
-        )
+        """Create a CSVSource from the cached FP spectrum."""
+        fp = self._get_fp_source(config, band, wl_min, wl_max)
         return fp._create_fp_source(wl_min=wl_min, wl_max=wl_max)
 
     def _create_lfc_source(
