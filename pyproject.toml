@@ -6,7 +6,7 @@ authors = [
     {name = "ANDES E2E Team", email = "andes@eso.org"}
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 keywords = ["astronomy", "spectrograph", "simulation", "andes", "e2e"]
 classifiers = [
@@ -28,6 +28,11 @@ dependencies = [
     "click>=8.0.0",
     "pyechelle>=0.4.0",
     "ruff>=0.14.9",
+]
+
+[tool.uv]
+override-dependencies = [
+    "astropy>=7.0",
 ]
 
 [project.optional-dependencies]
