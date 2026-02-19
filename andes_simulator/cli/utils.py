@@ -160,16 +160,22 @@ def build_config_from_options(
     )
 
 
-def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
+def format_dry_run_output(config, extra_lines: Optional[list] = None,
+                          velocity_shift_file: Optional[str] = None,
+                          velocity_shift_fiber: Optional[int] = None) -> None:
     """
     Print standardized dry-run output.
-    
+
     Parameters
     ----------
     config : SimulationConfig
         The simulation configuration
     extra_lines : list, optional
         Additional lines to print
+    velocity_shift_file : str, optional
+        Path to JSON offsets file (if velocity shift came from file)
+    velocity_shift_fiber : int, optional
+        Fiber number (when shift came from file)
     """
     click.echo("Dry run - would execute:")
     click.echo(f"  Type: {config.simulation_type}")
@@ -178,7 +184,7 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
         click.echo(f"  HDF model: {config.hdf_model}")
     click.echo(f"  Subslit: {config.fibers.mode}")
     click.echo(f"  Exposure: {config.exposure_time}s")
-    
+
     if config.source.type == "constant":
         click.echo(f"  Flux: {config.source.flux}")
     elif config.source.type == "fabry_perot":
@@ -196,9 +202,13 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None) -> None:
     elif config.source.type == "csv":
         click.echo(f"  Spectrum: {config.source.filepath}")
         click.echo(f"  Scaling: {config.source.scaling_factor}")
-    
+
     if config.velocity_shift:
-        click.echo(f"  Velocity shift: {config.velocity_shift} m/s")
+        if velocity_shift_file:
+            click.echo(f"  Velocity shift: {config.velocity_shift} m/s "
+                        f"(fiber {velocity_shift_fiber}, from {velocity_shift_file})")
+        else:
+            click.echo(f"  Velocity shift: {config.velocity_shift} m/s")
     if config.wl_min or config.wl_max:
         wl_range = f"{config.wl_min or '...'}-{config.wl_max or '...'} nm"
         click.echo(f"  Wavelength range: {wl_range}")

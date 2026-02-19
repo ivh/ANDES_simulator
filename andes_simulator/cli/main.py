@@ -134,7 +134,8 @@ def cli(ctx, verbose, project_root):
 @flux_options
 @common_options
 @click.option('--output-name', type=str, help='Output filename (overrides default)')
-@click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
+@click.option('--velocity-shift', type=str, default=None,
+              help='Velocity shift: value in m/s or path to JSON offsets file')
 @click.option('--finesse', type=float, default=None,
               help='FP finesse (default: band-dependent)')
 @click.option('--fp-gap', type=float, default=None,
@@ -191,6 +192,31 @@ def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
         fiber_mode = fiber_spec
         fiber = None
 
+    # Parse velocity_shift: float value or JSON file path
+    velocity_shift_file = None
+    velocity_shift_value = None
+    if velocity_shift is not None:
+        try:
+            velocity_shift_value = float(velocity_shift)
+        except ValueError:
+            import json
+            vshift_path = Path(velocity_shift)
+            if not vshift_path.exists():
+                raise click.BadParameter(
+                    f"Not a number and file not found: {velocity_shift}",
+                    param_hint="--velocity-shift")
+            if fiber is None:
+                raise click.UsageError(
+                    "JSON velocity-shift file requires --fiber N (single fiber mode)")
+            with open(vshift_path) as f:
+                offsets = json.load(f)
+            key = str(fiber)
+            if key not in offsets:
+                raise click.UsageError(
+                    f"Fiber {fiber} not found in {vshift_path}")
+            velocity_shift_value = float(offsets[key])
+            velocity_shift_file = str(vshift_path)
+
     sim_config = build_config_from_options(
         simulation_type=simulation_type,
         band=band,
@@ -202,7 +228,7 @@ def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
         fiber=fiber,
         flux=flux,
         scaling=scaling,
-        velocity_shift=velocity_shift,
+        velocity_shift=velocity_shift_value,
         hdf=hdf_path,
         wl_min=wl_min,
         wl_max=wl_max,
@@ -215,9 +241,62 @@ def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
     run_simulation_command(
         sim_config,
         dry_run,
-        lambda: format_dry_run_output(sim_config),
+        lambda: format_dry_run_output(sim_config, velocity_shift_file=velocity_shift_file,
+                                      velocity_shift_fiber=fiber),
         f"Simulation completed ({source_spec})"
     )
+
+
+@cli.command()
+@click.option('--band', required=True, type=click.Choice(ANDES_BANDS),
+              help='Spectral band')
+@subslit_options
+@click.option('--rms', required=True, type=float,
+              help='RMS of velocity offsets in m/s')
+@click.option('--seed', default=None, type=int,
+              help='Random seed for reproducibility')
+@click.option('-o', '--output', required=True, type=click.Path(path_type=Path),
+              help='Output JSON file path')
+def generate_offsets(band, fiber_spec, rms, seed, output):
+    """Generate random per-fiber velocity offsets and save to JSON.
+
+    Draws offsets from N(0, rms) for each fiber in the selected subslit.
+
+    Examples:
+      andes-sim generate-offsets --band R --subslit slitA --rms 200 --seed 42 -o offsets.json
+      andes-sim generate-offsets --band R --subslit all --rms 100 --seed 1 -o all_offsets.json
+    """
+    import json
+    import numpy as np
+    from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+
+    # Build a minimal config just to resolve the fiber list
+    if isinstance(fiber_spec, int):
+        fiber_mode = 'single'
+        fibers = [fiber_spec]
+    else:
+        fiber_mode = fiber_spec
+        fibers = "all"
+
+    config = SimulationConfig(
+        simulation_type='flat_field',
+        band=band,
+        source=SourceConfig(),
+        fibers=FiberConfig(mode=fiber_mode, fibers=fibers),
+        output=OutputConfig(),
+    )
+    fiber_list = config.get_fiber_list()
+
+    rng = np.random.default_rng(seed)
+    offsets = {fib: round(float(rng.normal(0, rms)), 2) for fib in fiber_list}
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with open(output, 'w') as f:
+        json.dump(offsets, f, indent=2)
+
+    click.echo(f"Generated {len(offsets)} offsets (rms={rms} m/s, seed={seed}) -> {output}")
+    for fib, v in sorted(offsets.items()):
+        click.echo(f"  fiber {fib:2d}: {v:+8.2f} m/s")
 
 
 @cli.command()
