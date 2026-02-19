@@ -20,6 +20,11 @@ BAND_ORDER_ESTIMATES = {
     'H': 76,   # orders 68-83
 }
 
+DEFAULT_SCALING = {
+    'U': 2.1e5, 'B': 1e5, 'V': 1e5, 'R': 8e4,
+    'IZ': 9e4, 'Y': 1.7e4, 'J': 1.4e4, 'H': 1.1e4,
+}
+
 # Default Fabry-Perot finesse per band (matching original CSV assignments)
 DEFAULT_FINESSE = {
     'U': 23, 'R': 23, 'IZ': 23,

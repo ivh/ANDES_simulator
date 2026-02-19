@@ -129,7 +129,8 @@ def build_config_from_options(
     # Build source config
     source_kwargs = {'type': source_type, 'flux': flux, 'flux_unit': flux_unit}
     # flux multiplies scaling for all source types
-    effective_scaling = flux * (scaling if scaling is not None else 1.0)
+    from ..core.instruments import DEFAULT_SCALING
+    effective_scaling = flux * (scaling if scaling is not None else DEFAULT_SCALING.get(band, 1e5))
     source_kwargs['scaling_factor'] = effective_scaling
     if source_type == 'constant':
         source_kwargs['flux'] = effective_scaling

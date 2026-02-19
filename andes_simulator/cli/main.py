@@ -101,15 +101,13 @@ def subslit_options(f):
     return f
 
 
-def flux_options(default_scaling=1e5):
-    """Flux/scaling options with configurable default scaling."""
-    def decorator(f):
-        f = click.option('--scaling', type=float, default=default_scaling,
-                         help='Base scaling factor')(f)
-        f = click.option('--flux', default=1.0, type=float,
-                         help='Flux multiplier (multiplied with scaling)')(f)
-        return f
-    return decorator
+def flux_options(f):
+    """Flux/scaling options."""
+    f = click.option('--scaling', type=float, default=None,
+                     help='Base scaling factor (default: per-band)')(f)
+    f = click.option('--flux', default=1.0, type=float,
+                     help='Flux multiplier (multiplied with scaling)')(f)
+    return f
 
 
 @click.group()
@@ -133,7 +131,7 @@ def cli(ctx, verbose, project_root):
 @click.option('--source', 'source_spec', required=True, type=str,
               help='Source type: flat, fp, lfc, or path to CSV file')
 @subslit_options
-@flux_options(default_scaling=1e5)
+@flux_options
 @common_options
 @click.option('--output-name', type=str, help='Output filename (overrides default)')
 @click.option('--velocity-shift', type=float, help='Velocity shift in m/s')
