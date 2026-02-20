@@ -30,6 +30,11 @@ dependencies = [
     "ruff>=0.14.9",
 ]
 
+[tool.uv]
+override-dependencies = [
+    "astropy>=7.0",
+]
+
 [project.optional-dependencies]
 visualization = [
     "matplotlib>=3.5.0",
