@@ -71,25 +71,28 @@ class FiberCombiner:
         self._source_header = None  # Will store headers from first loaded file
         self._per_fiber_headers: Dict[int, Dict] = {}  # fiber_num -> {key: value}
     
-    def load_fiber_data(self, 
+    def load_fiber_data(self,
                        fiber_num: int,
-                       input_pattern: str) -> Optional[np.ndarray]:
+                       input_pattern: str,
+                       skip_dark: bool = True) -> Optional[np.ndarray]:
         """
         Load data for a single fiber.
-        
+
         Parameters
         ----------
         fiber_num : int
             1-based fiber number
         input_pattern : str
             File pattern with {fib} placeholder
-            
+        skip_dark : bool
+            If True, return zeros for fibers in skip_fibers list
+
         Returns
         -------
         np.ndarray or None
             Fiber image data, or None if not found/skipped
         """
-        if fiber_num in self.skip_fibers:
+        if skip_dark and fiber_num in self.skip_fibers:
             return np.zeros(self.detector_size)
         
         # Create search pattern
@@ -119,10 +122,11 @@ class FiberCombiner:
     def combine_all_fibers(self,
                           input_pattern: str,
                           weights: Optional[List[float]] = None,
-                          max_workers: int = 6) -> np.ndarray:
+                          max_workers: int = 6,
+                          skip_dark: bool = True) -> np.ndarray:
         """
         Combine all fiber outputs with optional weighting.
-        
+
         Parameters
         ----------
         input_pattern : str
@@ -131,7 +135,9 @@ class FiberCombiner:
             Weights for each fiber (must match n_fibers)
         max_workers : int
             Maximum parallel workers
-            
+        skip_dark : bool
+            If True, substitute zeros for dark/dead fibers
+
         Returns
         -------
         np.ndarray
@@ -139,12 +145,13 @@ class FiberCombiner:
         """
         if weights is not None and len(weights) != self.n_fibers:
             raise ValueError(f"Weights length ({len(weights)}) must match n_fibers ({self.n_fibers})")
-        
+
         combined_image = np.zeros(self.detector_size)
-        
+
         # Create partial function for parallel loading
-        load_func = functools.partial(self.load_fiber_data, input_pattern=input_pattern)
-        
+        load_func = functools.partial(self.load_fiber_data, input_pattern=input_pattern,
+                                      skip_dark=skip_dark)
+
         # Load all fiber data in parallel
         with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
             fiber_nums = range(1, self.n_fibers + 1)
@@ -379,9 +386,7 @@ class FiberCombiner:
         if self.skip_fibers:
             hdu.header['SKIPFIB'] = ','.join(map(str, self.skip_fibers))
         
-        # Write to file
         hdu.writeto(str(output_path), overwrite=True)
-        print(f"Saved combined image: {output_path}")
     
     def analyze_fiber_contributions(self, 
                                    input_pattern: str) -> Dict[str, Any]:

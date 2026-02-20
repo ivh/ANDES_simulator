@@ -407,7 +407,7 @@ def psf_process(ctx, band, input_pattern, kernel_size, fwhm, edge_blank, output_
 @click.option('--input-pattern', required=True, type=str,
               help='Input file pattern (e.g., "{band}_FP_fiber{fib:02d}_shift*.fits")')
 @click.option('--mode', default='all',
-              type=click.Choice(['all', 'even_odd', 'slits', 'custom']),
+              type=click.Choice(['all', 'all_but_dark', 'even_odd', 'slits', 'custom']),
               help='Combination mode')
 @click.option('--fibers', type=str, help='Fiber list for custom mode (e.g., "1,5,10-15")')
 @click.option('--output', type=str, help='Output filename')
@@ -432,9 +432,10 @@ def combine(ctx, band, input_pattern, mode, fibers, output, output_dir, report, 
     combiner = FiberCombiner(band, ctx.obj['project_root'], input_dir=output_dir)
     
     try:
-        if mode == 'all':
-            combined_image = combiner.combine_all_fibers(input_pattern)
-            output_filename = output or f"{band}_combined_all.fits"
+        if mode in ('all', 'all_but_dark'):
+            skip_dark = (mode == 'all_but_dark')
+            combined_image = combiner.combine_all_fibers(input_pattern, skip_dark=skip_dark)
+            output_filename = output or f"{band}_combined_{mode}.fits"
             
         elif mode == 'even_odd':
             results = combiner.combine_even_odd_fibers(input_pattern)
@@ -489,7 +490,7 @@ def combine(ctx, band, input_pattern, mode, fibers, output, output_dir, report, 
             output_filename = output or f"{band}_combined_custom.fits"
         
         # Save result (for all, custom modes)
-        if mode in ['all', 'custom']:
+        if mode in ['all', 'all_but_dark', 'custom']:
             if output_dir:
                 output_path = output_dir / output_filename
             else:
