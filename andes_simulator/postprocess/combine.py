@@ -152,8 +152,8 @@ class FiberCombiner:
         load_func = functools.partial(self.load_fiber_data, input_pattern=input_pattern,
                                       skip_dark=skip_dark)
 
-        # Load all fiber data in parallel
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        # Load all fiber data in parallel (threads share state for header collection)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             fiber_nums = range(1, self.n_fibers + 1)
             fiber_data_list = list(executor.map(load_func, fiber_nums))
         
