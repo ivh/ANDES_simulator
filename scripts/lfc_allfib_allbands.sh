@@ -7,8 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="${SRC_DIR}/../lfc_allfib_allbands"
 
-FLUX=0.01
-JOBS=64
+FLUX=1
+JOBS=6
 
 cd "$SRC_DIR"
 mkdir -p "$OUTPUT_DIR"
