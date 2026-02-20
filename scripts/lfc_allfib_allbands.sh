@@ -6,10 +6,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="${SRC_DIR}/../lfc_allfib_allbands"
-DATA_DIR="${SRC_DIR}/data"
 
 FLUX=0.01
-JOBS=6
+JOBS=64
 
 cd "$SRC_DIR"
 mkdir -p "$OUTPUT_DIR"
@@ -36,17 +35,29 @@ run_sim() {
 }
 export -f run_sim
 
-# Build job list: all (band, fiber) pairs
+# Build job list, skipping existing outputs
 JOBFILE=$(mktemp)
+SKIPPED=0
 for BAND in U B V R IZ Y J H; do
     NFIB=$(get_nfibers "$BAND")
     for FIB in $(seq 1 "$NFIB"); do
-        echo "$BAND $FIB $SRC_DIR $OUTPUT_DIR $FLUX"
+        OUTFILE="${OUTPUT_DIR}/${BAND}_LFC_fiber$(printf '%02d' "$FIB").fits"
+        if [[ -f "$OUTFILE" ]]; then
+            SKIPPED=$((SKIPPED + 1))
+        else
+            echo "$BAND $FIB $SRC_DIR $OUTPUT_DIR $FLUX"
+        fi
     done
 done > "$JOBFILE"
 
-echo "Running $(wc -l < "$JOBFILE") LFC fiber simulations across 8 bands..."
-parallel -j$JOBS --bar --retries 2 --delay 0.5 --colsep ' ' \
+TOTAL=$(wc -l < "$JOBFILE")
+if [[ $TOTAL -eq 0 ]]; then
+    echo "All files exist ($SKIPPED skipped). Nothing to do."
+    rm -f "$JOBFILE"
+    exit 0
+fi
+echo "Running $TOTAL LFC fiber simulations ($SKIPPED already exist)..."
+parallel -j$JOBS --bar --retries 100 --delay 0.5 --colsep ' ' \
     run_sim {1} {2} {3} {4} {5} < "$JOBFILE"
 
 rm -f "$JOBFILE"
