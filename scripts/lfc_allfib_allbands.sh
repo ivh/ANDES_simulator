@@ -27,6 +27,9 @@ run_sim() {
     local src_dir=$3
     local out_dir=$4
     local flux=$5
+    # Per-worker numba cache to avoid parallel cache corruption
+    export NUMBA_CACHE_DIR=$(mktemp -d)
+    trap "rm -rf $NUMBA_CACHE_DIR" RETURN
     uv run andes-sim simulate --band "$band" --source lfc --fiber "$fiber" \
         --flux "$flux" \
         --velocity-shift "${src_dir}/data/vel_shifts_${band}.json" \
