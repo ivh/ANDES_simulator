@@ -28,6 +28,9 @@ class FiberCombiner:
     # Headers to propagate from input files to combined output
     PROPAGATE_HEADERS = ['HDFMODEL', 'SIMTYPE', 'SRCTYPE', 'SRCFLUX', 'SRCSCALE',
                          'EXPTIME', 'VSHIFT', 'FIBEFF', 'WL_MIN', 'WL_MAX']
+    # Headers that trivially differ between fibers (timestamps, pyechelle internals)
+    IGNORE_DIFF_HEADERS = {'DATE-OBS'}
+    IGNORE_DIFF_PREFIXES = ('PYE',)
 
     def __init__(self,
                  band: str,
@@ -66,6 +69,7 @@ class FiberCombiner:
         self.detector_size = (config_size[1], config_size[0])
         self.skip_fibers = self.instrument_config.get('skip_fibers', [])
         self._source_header = None  # Will store headers from first loaded file
+        self._per_fiber_headers: Dict[int, Dict] = {}  # fiber_num -> {key: value}
     
     def load_fiber_data(self, 
                        fiber_num: int,
@@ -102,11 +106,11 @@ class FiberCombiner:
         # Load the first matching file
         try:
             with fits.open(matching_files[0]) as hdul:
-                # Capture headers from first successfully loaded file
+                hdr = hdul[0].header
+                fiber_hdr = {k: hdr.get(k) for k in self.PROPAGATE_HEADERS if k in hdr}
+                self._per_fiber_headers[fiber_num] = fiber_hdr
                 if self._source_header is None:
-                    self._source_header = {k: hdul[0].header.get(k)
-                                           for k in self.PROPAGATE_HEADERS
-                                           if k in hdul[0].header}
+                    self._source_header = fiber_hdr
                 return hdul[0].data.copy()
         except Exception as e:
             print(f"Error loading fiber {fiber_num} data: {e}")
@@ -301,7 +305,35 @@ class FiberCombiner:
         print(f"Created fiber map: {output_path}")
         
         return output_path
-    
+
+    def _partition_headers(self) -> tuple:
+        """Split propagated headers into varying and uniform across fibers.
+
+        Returns (varying, uniform) where varying = {key: {fiber: value}}
+        and uniform = {key: value}.
+        """
+        if not self._per_fiber_headers:
+            return {}, dict(self._source_header or {})
+
+        all_keys = set()
+        for hdr in self._per_fiber_headers.values():
+            all_keys.update(hdr.keys())
+        all_keys -= self.IGNORE_DIFF_HEADERS
+        all_keys = {k for k in all_keys if not k.startswith(self.IGNORE_DIFF_PREFIXES)}
+
+        varying: Dict[str, Dict[int, Any]] = {}
+        uniform: Dict[str, Any] = {}
+
+        for key in all_keys:
+            values = {fib: hdr[key] for fib, hdr in self._per_fiber_headers.items() if key in hdr}
+            unique = set(values.values())
+            if len(unique) <= 1:
+                uniform[key] = next(iter(unique)) if unique else None
+            else:
+                varying[key] = values
+
+        return varying, uniform
+
     def save_combined_image(self,
                            image_data: np.ndarray,
                            output_path: Path,
@@ -329,11 +361,15 @@ class FiberCombiner:
         hdu.header['DETSIZE'] = f"{self.detector_size[0]}x{self.detector_size[1]}"
         hdu.header['COMBINED'] = True
 
-        # Propagate headers from source files
+        # Propagate headers: uniform ones as single key, varying ones as per-fiber keys
         if self._source_header:
-            for key, value in self._source_header.items():
-                if value is not None:
-                    hdu.header[key] = value
+            varying, uniform = self._partition_headers()
+            for key, value in uniform.items():
+                hdu.header[key] = value
+            for key, fiber_values in varying.items():
+                for fib, val in sorted(fiber_values.items()):
+                    per_key = f"{key[:5]}{fib:02d}"
+                    hdu.header[per_key] = (val, f"{key} fiber {fib}")
 
         if combination_info:
             for key, value in combination_info.items():
