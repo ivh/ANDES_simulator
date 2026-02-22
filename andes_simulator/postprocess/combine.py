@@ -93,7 +93,7 @@ class FiberCombiner:
             Fiber image data, or None if not found/skipped
         """
         if skip_dark and fiber_num in self.skip_fibers:
-            return np.zeros(self.detector_size)
+            return np.zeros(self.detector_size, dtype=np.uint16)
         
         # Create search pattern
         pattern = input_pattern.format(fib=fiber_num)
@@ -104,7 +104,7 @@ class FiberCombiner:
         
         if not matching_files:
             print(f"Warning: No files found for fiber {fiber_num} with pattern: {pattern}")
-            return np.zeros(self.detector_size)
+            return np.zeros(self.detector_size, dtype=np.uint16)
         
         # Load the first matching file
         try:
@@ -117,36 +117,30 @@ class FiberCombiner:
                 return hdul[0].data.copy()
         except Exception as e:
             print(f"Error loading fiber {fiber_num} data: {e}")
-            return np.zeros(self.detector_size)
+            return np.zeros(self.detector_size, dtype=np.uint16)
     
     def combine_all_fibers(self,
                           input_pattern: str,
-                          weights: Optional[List[float]] = None,
                           max_workers: int = 6,
                           skip_dark: bool = True) -> np.ndarray:
         """
-        Combine all fiber outputs with optional weighting.
+        Combine all fiber outputs by summation.
 
         Parameters
         ----------
         input_pattern : str
             File pattern for fiber files
-        weights : List[float], optional
-            Weights for each fiber (must match n_fibers)
         max_workers : int
             Maximum parallel workers
         skip_dark : bool
-            If True, substitute zeros for dark/dead fibers
+            If True, substitute zeros for fibers in skip_fibers list
 
         Returns
         -------
         np.ndarray
-            Combined detector image
+            Combined detector image (uint32)
         """
-        if weights is not None and len(weights) != self.n_fibers:
-            raise ValueError(f"Weights length ({len(weights)}) must match n_fibers ({self.n_fibers})")
-
-        combined_image = np.zeros(self.detector_size)
+        combined_image = np.zeros(self.detector_size, dtype=np.uint16)
 
         # Create partial function for parallel loading
         load_func = functools.partial(self.load_fiber_data, input_pattern=input_pattern,
@@ -156,47 +150,38 @@ class FiberCombiner:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             fiber_nums = range(1, self.n_fibers + 1)
             fiber_data_list = list(executor.map(load_func, fiber_nums))
-        
-        # Combine with weights
-        for i, fiber_data in enumerate(fiber_data_list):
+
+        for fiber_data in fiber_data_list:
             if fiber_data is not None:
-                weight = weights[i] if weights is not None else 1.0
-                combined_image += weight * fiber_data
-        
+                combined_image += fiber_data
+
         return combined_image
     
     def combine_fiber_subset(self,
                            fiber_nums: List[int],
-                           input_pattern: str,
-                           weights: Optional[List[float]] = None) -> np.ndarray:
+                           input_pattern: str) -> np.ndarray:
         """
         Combine specific subset of fibers.
-        
+
         Parameters
         ----------
         fiber_nums : List[int]
             List of 1-based fiber numbers to combine
         input_pattern : str
             File pattern for fiber files
-        weights : List[float], optional
-            Weights for each specified fiber
-            
+
         Returns
         -------
         np.ndarray
-            Combined detector image
+            Combined detector image (uint32)
         """
-        if weights is not None and len(weights) != len(fiber_nums):
-            raise ValueError("Weights length must match fiber_nums length")
-        
-        combined_image = np.zeros(self.detector_size)
-        
-        for i, fiber_num in enumerate(fiber_nums):
+        combined_image = np.zeros(self.detector_size, dtype=np.uint16)
+
+        for fiber_num in fiber_nums:
             fiber_data = self.load_fiber_data(fiber_num, input_pattern)
             if fiber_data is not None:
-                weight = weights[i] if weights is not None else 1.0
-                combined_image += weight * fiber_data
-        
+                combined_image += fiber_data
+
         return combined_image
     
     def combine_even_odd_fibers(self, 
