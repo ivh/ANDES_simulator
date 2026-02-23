@@ -121,7 +121,7 @@ class AndesSimulator:
         fib_eff : str
             Efficiency specification ("0.9" or "0.7-0.9")
         """
-        from pyechelle.efficiency import TabulatedEfficiency, SystemEfficiency
+        from pyechelle.efficiency import TabulatedEfficiency
 
         eff_min, eff_max = self._parse_fib_eff(fib_eff)
 
@@ -142,26 +142,18 @@ class AndesSimulator:
 
         self.logger.info(f"Applying fiber efficiency: {fib_eff}")
 
-        # Ensure the efficiency cache dict exists
-        if not hasattr(zemax, '_efficiency') or zemax._efficiency is None:
-            zemax._efficiency = {}
-        if ccd_index not in zemax._efficiency:
-            zemax._efficiency[ccd_index] = {}
-
         for fiber_num in range(1, n_fibers + 1):
-            # Determine efficiency value for this fiber
             if eff_min == eff_max:
                 eff_value = eff_min
             else:
                 eff_value = np.random.uniform(eff_min, eff_max)
 
             efficiency = np.array([eff_value, eff_value, eff_value])
-
-            # Create efficiency object and set in cache
             fiber_eff_obj = TabulatedEfficiency("FiberEff", wavelengths, efficiency)
-            zemax._efficiency[ccd_index][fiber_num] = SystemEfficiency(
-                [fiber_eff_obj], "System"
-            )
+
+            # Get existing efficiency (blaze etc.) and add fiber eff on top
+            base_eff = zemax.get_efficiency(fiber_num, ccd_index)
+            base_eff.add_efficiency(fiber_eff_obj)
     
     def __del__(self):
         """Ensure cleanup on deletion."""
