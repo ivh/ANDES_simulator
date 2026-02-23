@@ -27,7 +27,7 @@ class FiberCombiner:
 
     # Headers to propagate from input files to combined output
     PROPAGATE_HEADERS = ['HDFMODEL', 'SIMTYPE', 'SRCTYPE', 'SRCFLUX', 'SRCSCALE',
-                         'EXPTIME', 'VSHIFT', 'FIBEFF', 'WL_MIN', 'WL_MAX']
+                         'EXPTIME', 'VSHIFT', 'XSHIFT', 'FIBEFF', 'WL_MIN', 'WL_MAX']
     # Headers that trivially differ between fibers (timestamps, pyechelle internals)
     IGNORE_DIFF_HEADERS = {'DATE-OBS'}
     IGNORE_DIFF_PREFIXES = ('PYE',)

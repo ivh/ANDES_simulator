@@ -136,6 +136,8 @@ def cli(ctx, verbose, project_root):
 @click.option('--output-name', type=str, help='Output filename (overrides default)')
 @click.option('--velocity-shift', type=str, default=None,
               help='Velocity shift: value in m/s or path to JSON offsets file')
+@click.option('--x-shift', type=str, default=None,
+              help='Pixel x-shift: value in pixels or path to JSON offsets file')
 @click.option('--finesse', type=float, default=None,
               help='FP finesse (default: band-dependent)')
 @click.option('--fp-gap', type=float, default=None,
@@ -143,7 +145,7 @@ def cli(ctx, verbose, project_root):
 @click.pass_context
 def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
              output_dir, output_name, hdf, wl_min, wl_max, fib_eff, velocity_shift,
-             finesse, fp_gap, dry_run):
+             x_shift, finesse, fp_gap, dry_run):
     """Run detector simulation with specified source.
 
     Source types:
@@ -217,6 +219,31 @@ def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
             velocity_shift_value = float(offsets[key])
             velocity_shift_file = str(vshift_path)
 
+    # Parse x_shift: float value or JSON file path
+    x_shift_file = None
+    x_shift_value = None
+    if x_shift is not None:
+        try:
+            x_shift_value = float(x_shift)
+        except ValueError:
+            import json
+            xshift_path = Path(x_shift)
+            if not xshift_path.exists():
+                raise click.BadParameter(
+                    f"Not a number and file not found: {x_shift}",
+                    param_hint="--x-shift")
+            if fiber is None:
+                raise click.UsageError(
+                    "JSON x-shift file requires --fiber N (single fiber mode)")
+            with open(xshift_path) as f:
+                offsets = json.load(f)
+            key = str(fiber)
+            if key not in offsets:
+                raise click.UsageError(
+                    f"Fiber {fiber} not found in {xshift_path}")
+            x_shift_value = float(offsets[key])
+            x_shift_file = str(xshift_path)
+
     sim_config = build_config_from_options(
         simulation_type=simulation_type,
         band=band,
@@ -229,6 +256,7 @@ def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
         flux=flux,
         scaling=scaling,
         velocity_shift=velocity_shift_value,
+        x_shift=x_shift_value,
         hdf=hdf_path,
         wl_min=wl_min,
         wl_max=wl_max,
@@ -242,7 +270,9 @@ def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
         sim_config,
         dry_run,
         lambda: format_dry_run_output(sim_config, velocity_shift_file=velocity_shift_file,
-                                      velocity_shift_fiber=fiber),
+                                      velocity_shift_fiber=fiber,
+                                      x_shift_file=x_shift_file,
+                                      x_shift_fiber=fiber),
         f"Simulation completed ({source_spec})"
     )
 

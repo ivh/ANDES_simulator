@@ -73,7 +73,8 @@ class SimulationConfig:
     fibers: FiberConfig = field(default_factory=FiberConfig)
     
     # Special features
-    velocity_shift: Optional[float] = None  # m/s for Doppler shifts
+    velocity_shift: Optional[float] = None  # m/s, Doppler via set_radial_velocities
+    x_shift: Optional[float] = None         # pixels, passed as d_tx to LocalDisturber
     thermal_model: Optional[str] = None     # For thermal variations
     wl_min: Optional[float] = None          # Minimum wavelength in nm
     wl_max: Optional[float] = None          # Maximum wavelength in nm

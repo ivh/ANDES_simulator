@@ -70,6 +70,7 @@ def build_config_from_options(
     flux: float = 1.0,
     scaling: Optional[float] = None,
     velocity_shift: Optional[float] = None,
+    x_shift: Optional[float] = None,
     spectrum_path: Optional[Path] = None,
     flux_unit: str = "ph/s/AA",
     hdf: Optional[str] = None,
@@ -154,6 +155,7 @@ def build_config_from_options(
         band=band,
         exposure_time=exposure,
         velocity_shift=velocity_shift,
+        x_shift=x_shift,
         hdf_model=hdf,
         wl_min=wl_min,
         wl_max=wl_max,
@@ -166,7 +168,9 @@ def build_config_from_options(
 
 def format_dry_run_output(config, extra_lines: Optional[list] = None,
                           velocity_shift_file: Optional[str] = None,
-                          velocity_shift_fiber: Optional[int] = None) -> None:
+                          velocity_shift_fiber: Optional[int] = None,
+                          x_shift_file: Optional[str] = None,
+                          x_shift_fiber: Optional[int] = None) -> None:
     """
     Print standardized dry-run output.
 
@@ -213,6 +217,12 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None,
                         f"(fiber {velocity_shift_fiber}, from {velocity_shift_file})")
         else:
             click.echo(f"  Velocity shift: {config.velocity_shift} m/s")
+    if config.x_shift is not None:
+        if x_shift_file:
+            click.echo(f"  X-shift: {config.x_shift} px "
+                        f"(fiber {x_shift_fiber}, from {x_shift_file})")
+        else:
+            click.echo(f"  X-shift: {config.x_shift} px")
     if config.wl_min or config.wl_max:
         wl_range = f"{config.wl_min or '...'}-{config.wl_max or '...'} nm"
         click.echo(f"  Wavelength range: {wl_range}")

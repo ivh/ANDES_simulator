@@ -191,6 +191,9 @@ class AndesSimulator:
             if self.config.velocity_shift is not None:
                 hdr['VSHIFT'] = (self.config.velocity_shift, '[m/s] Velocity shift')
 
+            if self.config.x_shift is not None:
+                hdr['XSHIFT'] = (self.config.x_shift, '[px] Pixel x-shift')
+
             if self.config.fib_eff:
                 hdr['FIBEFF'] = (self.config.fib_eff, 'Fiber efficiency setting')
 
@@ -275,11 +278,10 @@ class AndesSimulator:
         self.hdf_path = hdf_path
         self.logger.info(f"Using HDF model: {hdf_path}")
         
-        # Create spectrograph with optional velocity shift
-        if self.config.velocity_shift is not None:
-            tx = self.config.velocity_shift / SPEED_OF_LIGHT
-            spec = LocalDisturber(ZEMAX(str(hdf_path)), d_tx=tx)
-            self.logger.info(f"Applied velocity shift: {self.config.velocity_shift} m/s")
+        # Create spectrograph with optional pixel-space shift
+        if self.config.x_shift is not None:
+            spec = LocalDisturber(ZEMAX(str(hdf_path)), d_tx=self.config.x_shift)
+            self.logger.info(f"Applied x-shift: {self.config.x_shift} pixels")
         else:
             spec = ZEMAX(str(hdf_path))
 
@@ -441,7 +443,11 @@ class AndesSimulator:
         # Standard simulation
         sources = self.setup_sources()
         self.simulator.set_sources(sources)
-        
+
+        if self.config.velocity_shift is not None:
+            self.simulator.set_radial_velocities(self.config.velocity_shift)
+            self.logger.info(f"Applied Doppler velocity shift: {self.config.velocity_shift} m/s")
+
         # Set output path
         if output_path is None:
             output_path = self.config.get_output_path()
