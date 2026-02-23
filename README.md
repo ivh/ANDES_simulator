@@ -77,6 +77,13 @@ uv run andes-sim simulate --band R --source lfc --fiber 21 --scaling 1e5 --outpu
 
 # Stellar spectrum observation
 uv run andes-sim simulate --band R --source SED/star.csv --fiber 21 --output-dir ../R/
+
+# Doppler velocity shift (m/s) - applied to source wavelengths via PyEchelle
+uv run andes-sim simulate --band R --source lfc --fiber 21 --velocity-shift 2000
+uv run andes-sim simulate --band R --source fp --fiber 21 --velocity-shift data/vel_shifts_R.json
+
+# Constant pixel x-shift - applied via LocalDisturber to the optical model
+uv run andes-sim simulate --band R --source lfc --fiber 21 --x-shift 0.5
 ```
 
 ### Post-Processing
@@ -135,4 +142,4 @@ Fabry-Perot spectral energy distributions (.csv):
 
 ---
 
-*Last updated: 2025-12-15*
+*Last updated: 2026-02-23*
