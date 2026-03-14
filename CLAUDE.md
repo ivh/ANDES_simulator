@@ -78,6 +78,8 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 ## Technical Notes
 
 - **PyEchelle**: Uses v0.4.0; must use `max_cpu=1` due to multi-CPU bug
+- **Parallel sims**: When running multiple simulations in parallel, each subprocess needs its own `NUMBA_CACHE_DIR` (tmpdir) to avoid numba cache corruption that causes "underlying object has vanished" errors. See `scripts/lfc_allfib_allbands.sh` and `scripts/ifu_star.py` for examples.
+- **CSV sources**: PyEchelle's raytracing passes bare micron floats to `get_counts`; the simulator converts CSV wavelengths to microns automatically. CSV files can include a `# scaling: VALUE` header comment for default flux scaling.
 - **Sources**: Each fiber needs individual source object (no shared references)
 - **Array shapes**: Config uses (X,Y), FITS/numpy uses (Y,X)
 - **LFC**: Lines equidistant in velocity (~33 km/s for R-band), ~100-150 lines/order

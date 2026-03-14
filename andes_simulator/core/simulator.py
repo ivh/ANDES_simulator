@@ -189,7 +189,10 @@ class AndesSimulator:
             hdr['FIBMODE'] = (self.config.fibers.mode, 'Fiber illumination mode')
 
             if self.config.velocity_shift is not None:
-                hdr['VSHIFT'] = (self.config.velocity_shift, '[m/s] Velocity shift')
+                if isinstance(self.config.velocity_shift, list):
+                    hdr['VSHIFT'] = ('per-fiber', '[m/s] Velocity shift (per-fiber from JSON)')
+                else:
+                    hdr['VSHIFT'] = (self.config.velocity_shift, '[m/s] Velocity shift')
 
             if self.config.x_shift is not None:
                 hdr['XSHIFT'] = (self.config.x_shift, '[px] Pixel x-shift')
@@ -446,7 +449,11 @@ class AndesSimulator:
 
         if self.config.velocity_shift is not None:
             self.simulator.set_radial_velocities(self.config.velocity_shift)
-            self.logger.info(f"Applied Doppler velocity shift: {self.config.velocity_shift} m/s")
+            if isinstance(self.config.velocity_shift, list):
+                nonzero = [(i+1, v) for i, v in enumerate(self.config.velocity_shift) if v != 0.0]
+                self.logger.info(f"Applied per-fiber velocity shifts to {len(nonzero)} fibers")
+            else:
+                self.logger.info(f"Applied Doppler velocity shift: {self.config.velocity_shift} m/s")
 
         # Set output path
         if output_path is None:

@@ -10,13 +10,16 @@ Simulates a star centered on the hexagonal IFU with:
     decreasing outward following the IFU spatial sampling.
   - Sky emission on all IFU fibers (uniform).
   - Fabry-Perot calibration on IFU cal fibers (1, 75).
+  - Per-fiber velocity shifts from data/vel_shifts_{band}.json.
 
 All frames are combined into a single output per band.
 Individual simulations run in parallel (6 workers).
 """
 
+import os
 import subprocess
 import sys
+import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -25,10 +28,12 @@ from astropy.io import fits
 
 SRC_DIR = Path(__file__).resolve().parent.parent
 SED_DIR = SRC_DIR / "SED"
+DATA_DIR = SRC_DIR / "data"
 OUT_DIR = SRC_DIR.parent / "ifu_star"
 
 BANDS = ["Y", "J", "H"]
 N_WORKERS = 6
+FIB_EFF = "0.75-0.95"
 
 # Ring flux weights: PSF profile across IFU (ring0 = center, brightest)
 RING_FLUX = {
@@ -50,7 +55,6 @@ def make_transmitted_star():
     star = np.loadtxt(SED_DIR / "HR1544.csv", delimiter=",", comments="#")
     trans = np.loadtxt(SED_DIR / "sky_transmission_YK.csv", delimiter=",")
 
-    # Interpolate transmission onto star wavelength grid
     transmission = np.interp(star[:, 0], trans[:, 0], trans[:, 1],
                              left=0.0, right=0.0)
     transmitted = star.copy()
@@ -66,17 +70,28 @@ def make_transmitted_star():
 
 
 def run_sim(band, args, label):
-    """Run a single andes-sim subprocess. Returns (label, returncode, stderr)."""
+    """Run a single andes-sim subprocess with isolated numba cache."""
+    cache_dir = tempfile.mkdtemp(prefix="numba_")
+    env = {**os.environ, "NUMBA_CACHE_DIR": cache_dir}
     cmd = ["uv", "run", "andes-sim", "simulate", "--band", band,
-           "--output-dir", str(OUT_DIR)] + args
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(SRC_DIR))
-    return label, result.returncode, result.stderr
+           "--output-dir", str(OUT_DIR), "--fib-eff", FIB_EFF] + args
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True,
+                                cwd=str(SRC_DIR), env=env)
+        return label, result.returncode, result.stderr
+    finally:
+        import shutil
+        shutil.rmtree(cache_dir, ignore_errors=True)
 
 
 def build_jobs(spectrum):
-    """Build list of (band, args, label) for all simulations."""
+    """Build per-ring/subslit jobs with per-fiber velocity shifts."""
     jobs = []
     for band in BANDS:
+        vshift_file = DATA_DIR / f"vel_shifts_{band}.json"
+        vshift_arg = ["--velocity-shift", str(vshift_file)] if vshift_file.exists() else []
+
+        # Star: per-ring with ring-dependent flux
         for ring, weight in RING_FLUX.items():
             flux = STAR_FLUX * weight
             jobs.append((band, [
@@ -84,21 +99,23 @@ def build_jobs(spectrum):
                 "--fiber", ring,
                 "--flux", f"{flux}",
                 "--output-name", f"{band}_star_{ring}.fits",
-            ], f"{band} star {ring}"))
+            ] + vshift_arg, f"{band} star {ring}"))
 
+        # Sky emission: all IFU fibers
         jobs.append((band, [
             "--source", str(SED_DIR / "sky_emission_YK.csv"),
             "--fiber", "ifu",
             "--flux", f"{SKY_FLUX}",
             "--output-name", f"{band}_sky_ifu.fits",
-        ], f"{band} sky emission"))
+        ] + vshift_arg, f"{band} sky emission"))
 
+        # FP cal
         jobs.append((band, [
             "--source", "fp",
             "--fiber", "cal_ifu",
             "--flux", f"{FP_FLUX}",
             "--output-name", f"{band}_fp_cal.fits",
-        ], f"{band} FP cal"))
+        ] + vshift_arg, f"{band} FP cal"))
 
     return jobs
 

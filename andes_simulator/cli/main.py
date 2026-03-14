@@ -189,16 +189,17 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
                     raise click.BadParameter(
                         f"Not a number and file not found: {velocity_shift}",
                         param_hint="--velocity-shift")
-                if fiber is None:
-                    raise click.UsageError(
-                        "JSON velocity-shift file requires --fiber N (single fiber mode)")
                 with open(vshift_path) as f:
                     offsets = json.load(f)
-                key = str(fiber)
-                if key not in offsets:
-                    raise click.UsageError(f"Fiber {fiber} not found in {vshift_path}")
-                velocity_shift_value = float(offsets[key])
                 velocity_shift_file = str(vshift_path)
+                if fiber is not None:
+                    key = str(fiber)
+                    if key not in offsets:
+                        raise click.UsageError(f"Fiber {fiber} not found in {vshift_path}")
+                    velocity_shift_value = float(offsets[key])
+                else:
+                    # Multi-fiber mode: build per-fiber RV list, defer to after config
+                    velocity_shift_value = offsets  # pass raw dict, resolved below
 
         x_shift_file = None
         x_shift_value = None
@@ -223,6 +224,9 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
                 x_shift_value = float(offsets[key])
                 x_shift_file = str(xshift_path)
 
+        # For multi-fiber JSON velocity shifts, pass None initially and resolve after
+        vshift_for_config = None if isinstance(velocity_shift_value, dict) else velocity_shift_value
+
         sim_config = build_config_from_options(
             simulation_type=simulation_type,
             band=band,
@@ -234,7 +238,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
             fiber=fiber,
             flux=flux,
             scaling=scaling,
-            velocity_shift=velocity_shift_value,
+            velocity_shift=vshift_for_config,
             x_shift=x_shift_value,
             hdf=hdf_path,
             wl_min=wl_min,
@@ -244,6 +248,16 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
             finesse=finesse,
             fp_gap=fp_gap,
         )
+
+        # Resolve per-fiber velocity shifts from JSON dict
+        if isinstance(velocity_shift_value, dict):
+            n_fibers = sim_config.n_fibers
+            rv_list = [0.0] * n_fibers
+            for k, v in velocity_shift_value.items():
+                idx = int(k) - 1  # 1-based fiber number to 0-based index
+                if 0 <= idx < n_fibers:
+                    rv_list[idx] = float(v)
+            sim_config.velocity_shift = rv_list
 
         run_simulation_command(
             sim_config,
