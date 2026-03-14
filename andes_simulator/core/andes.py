@@ -4,7 +4,7 @@ INSTRUMENT_NAME = 'ANDES'
 
 ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
 
-SUBSLIT_CHOICES = ['all', 'even', 'odd', 'slitA', 'slitB', 'cal',
+SUBSLIT_CHOICES = ['all', 'even', 'odd', 'slitA', 'slitB', 'cal_sl', 'cal_ifu',
                    'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']
 
 BAND_ORDER_ESTIMATES = {

@@ -23,7 +23,7 @@ uv run andes-sim simulate --band R --source flat --fiber 21
 uv run andes-sim simulate --band R --source fp --fiber 21 --flux 100
 
 # LFC
-uv run andes-sim simulate --band R --source lfc --subslit cal
+uv run andes-sim simulate --band R --source lfc --subslit cal_sl
 
 # YJH IFU
 uv run andes-sim simulate --band Y --source flat --subslit ifu
@@ -65,7 +65,8 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 - `--source`: Source type (`flat`, `fp`, `lfc`) or path to CSV spectrum file
 - `--hdf`: Custom HDF model file (infers band from wavelength content)
 - `--subslit`: Fiber selection for simulations
-  - ANDES all bands: `all`, `even`, `odd`, `slitA`, `slitB`, `cal`
+  - ANDES all bands: `all`, `even`, `odd`, `slitA`, `slitB`, `cal_sl`
+  - ANDES YJH only: `cal_ifu`
   - ANDES YJH only: `ifu`, `ring0`, `ring1`, `ring2`, `ring3`, `ring4`
   - MOSAIC: `all`, `even`, `odd`
 - `--mode`: Combination mode for post-processing (`all`, `even_odd`, `slits`, `custom`)

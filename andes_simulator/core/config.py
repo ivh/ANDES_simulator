@@ -111,7 +111,8 @@ class SimulationConfig:
             raise ValueError(f"Invalid simulation_type '{self.simulation_type}'. Available: {valid_sim_types}")
         
         # Validate fiber mode
-        valid_fiber_modes = ["all", "single", "even", "odd", "slitA", "slitB", "cal",
+        valid_fiber_modes = ["all", "single", "even", "odd", "slitA", "slitB",
+                            "cal_sl", "cal_ifu",
                             "ifu", "ring0", "ring1", "ring2", "ring3", "ring4", "custom"]
         if self.fibers.mode not in valid_fiber_modes:
             raise ValueError(f"Invalid fiber mode '{self.fibers.mode}'. Available: {valid_fiber_modes}")
@@ -179,13 +180,20 @@ class SimulationConfig:
         elif self.fibers.mode == "odd":
             fibers = [f for f in range(1, n_fibers + 1) if f % 2 == 1]
 
-        elif self.fibers.mode in ("slitA", "slitB", "cal"):
+        elif self.fibers.mode in ("slitA", "slitB", "cal_sl"):
             fc = self.instrument_config.get('fiber_config', {})
             slit_defs = fc.get('slits', {})
-            key = 'cal_fibers' if self.fibers.mode == 'cal' else self.fibers.mode
+            key = 'cal_fibers' if self.fibers.mode == 'cal_sl' else self.fibers.mode
             if key not in slit_defs:
                 raise ValueError(f"Mode '{self.fibers.mode}' not available for {self.band}-band")
             fibers = list(slit_defs[key])
+
+        elif self.fibers.mode == "cal_ifu":
+            ifu_cfg = self.instrument_config.get('ifu_config', {})
+            ifu_slits = ifu_cfg.get('slits', {})
+            if 'cal_fibers' not in ifu_slits:
+                raise ValueError(f"Mode 'cal_ifu' not available for {self.band}-band")
+            fibers = list(ifu_slits['cal_fibers'])
 
         elif self.fibers.mode in ("ifu", "ring0", "ring1", "ring2", "ring3", "ring4"):
             ifu_cfg = self.instrument_config.get('ifu_config', {})
