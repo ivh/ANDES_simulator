@@ -187,33 +187,85 @@ class SourceFactory:
         wl_min: Optional[float] = None,
         wl_max: Optional[float] = None
     ) -> CSVSource:
-        """Create a CSV-based source."""
+        """Create a CSV-based source.
+
+        PyEchelle's raytracing passes bare micron floats to get_counts, so
+        the CSVSource must use wavelength_units='um' with data in microns.
+        We convert from whatever unit the input CSV uses.
+
+        CSV files may contain a ``# scaling: VALUE`` header comment that
+        defines the default flux multiplier for that spectrum.  When
+        ``config.use_file_scaling`` is True (no explicit ``--scaling``),
+        this value is folded into the scaling; ``--flux`` still acts as
+        an additional multiplier on top.
+        """
         csv_path = Path(config.filepath)
         if not csv_path.is_absolute():
             csv_path = self.project_root / csv_path
-        
+
         if not csv_path.exists():
             raise FileNotFoundError(f"CSV source file not found: {csv_path}")
-        
+
+        # Parse optional '# scaling: VALUE' from file header
+        file_scaling = self._parse_csv_scaling(csv_path)
+
         data_path = self._prepare_filtered_spectrum(
             csv_path,
             config.wavelength_unit,
             wl_min,
             wl_max
         )
-        
-        source = CSVSource(
-            filepath=str(data_path),
-            wavelength_unit=config.wavelength_unit,
-            flux_in_photons=(config.flux_unit == "ph/s")
+
+        # Convert wavelengths to microns if needed (pyechelle requirement)
+        data_path = self._ensure_micron_wavelengths(data_path, config.wavelength_unit)
+
+        # Apply scaling: file default * --flux, or explicit --scaling * --flux
+        # Must scale before CSVSource reads the file (interpolator is built in __init__)
+        scale = config.scaling_factor
+        if config.use_file_scaling and file_scaling is not None:
+            scale *= file_scaling
+        if scale != 1.0:
+            data_path = self._scale_csv_flux(data_path, scale)
+
+        return CSVSource(
+            str(data_path),
+            wavelength_units="um",
+            flux_units=config.flux_unit or "ph/s/AA",
         )
-        
-        # Apply scaling if specified
-        if hasattr(source, 'flux_data') and config.scaling_factor != 1.0:
-            source.flux_data *= config.scaling_factor
-        
-        return source
-    
+
+    @staticmethod
+    def _parse_csv_scaling(csv_path: Path) -> Optional[float]:
+        """Read ``# scaling: VALUE`` from the first comment lines of a CSV."""
+        with csv_path.open('r') as f:
+            for line in f:
+                stripped = line.strip()
+                if not stripped or not stripped.startswith('#'):
+                    break
+                if stripped.lower().startswith('# scaling:'):
+                    try:
+                        return float(stripped.split(':', 1)[1].strip())
+                    except ValueError:
+                        pass
+        return None
+
+    def _scale_csv_flux(self, csv_path: Path, scale: float) -> Path:
+        """Multiply the flux column of a two-column CSV by *scale*."""
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+        with csv_path.open('r') as src:
+            for line in src:
+                parts = line.strip().split(',')
+                if len(parts) < 2:
+                    continue
+                try:
+                    flux = float(parts[1])
+                except ValueError:
+                    continue
+                parts[1] = f"{flux * scale}"
+                temp_file.write(','.join(parts) + '\n')
+        temp_file.close()
+        self._temp_files.append(temp_file)
+        return Path(temp_file.name)
+
     def _get_fp_source(self, config: SourceConfig, band: str,
                        wl_min: Optional[float] = None,
                        wl_max: Optional[float] = None):
@@ -330,7 +382,6 @@ class SourceFactory:
                 try:
                     wl_value = float(first_field)
                 except ValueError:
-                    temp_file.write(line)
                     continue
 
                 wl_nm = self._to_nanometers(wl_value, wavelength_unit)
@@ -342,6 +393,36 @@ class SourceFactory:
                 temp_file.write(line)
                 kept += 1
         return kept
+
+    def _ensure_micron_wavelengths(self, csv_path: Path, wavelength_unit: Optional[str]) -> Path:
+        """Convert CSV wavelengths to microns if not already."""
+        unit = (wavelength_unit or "nm").lower().strip()
+        if unit in {"um", "micron", "microns", "\u00b5m"}:
+            return csv_path
+
+        scale = {"nm": 1e-3, "nanometer": 1e-3, "nanometers": 1e-3,
+                 "aa": 1e-4, "a": 1e-4, "angstrom": 1e-4, "angstroms": 1e-4}
+        factor = scale.get(unit.replace('\u00e5', 'angstrom'))
+        if factor is None:
+            self.logger.warning("Unknown wavelength unit '%s'; assuming nm", unit)
+            factor = 1e-3
+
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+        with csv_path.open('r') as src:
+            for line in src:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                parts = stripped.split(',')
+                try:
+                    wl = float(parts[0])
+                except ValueError:
+                    continue
+                parts[0] = f"{wl * factor}"
+                temp_file.write(','.join(parts) + '\n')
+        temp_file.close()
+        self._temp_files.append(temp_file)
+        return Path(temp_file.name)
 
     def _to_nanometers(self, value: float, unit: Optional[str]) -> float:
         """Convert wavelength value from its unit to nanometers."""

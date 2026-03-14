@@ -129,16 +129,21 @@ def build_config_from_options(
     
     # Build source config
     source_kwargs = {'type': source_type, 'flux': flux, 'flux_unit': flux_unit}
-    # flux multiplies scaling for all source types
     from ..core.instruments import DEFAULT_SCALING
-    effective_scaling = flux * (scaling if scaling is not None else DEFAULT_SCALING.get(band, 1e5))
-    if source_type == 'lfc':
-        effective_scaling /= 20
-    elif source_type == 'fabry_perot':
-        effective_scaling /= 100
-    source_kwargs['scaling_factor'] = effective_scaling
+    if source_type == 'csv':
+        # For CSV sources: scaling from file header (# scaling: VALUE),
+        # --flux is a multiplier, --scaling overrides file default
+        source_kwargs['scaling_factor'] = flux * scaling if scaling is not None else flux
+        source_kwargs['use_file_scaling'] = (scaling is None)
+    else:
+        effective_scaling = flux * (scaling if scaling is not None else DEFAULT_SCALING.get(band, 1e5))
+        if source_type == 'lfc':
+            effective_scaling /= 20
+        elif source_type == 'fabry_perot':
+            effective_scaling /= 100
+        source_kwargs['scaling_factor'] = effective_scaling
     if source_type == 'constant':
-        source_kwargs['flux'] = effective_scaling
+        source_kwargs['flux'] = source_kwargs['scaling_factor']
     if spectrum_path is not None:
         source_kwargs['filepath'] = str(spectrum_path)
     if source_type == 'fabry_perot':

@@ -32,6 +32,7 @@ class SourceConfig:
     filepath: Optional[str] = None  # For CSV sources
     wavelength_unit: str = "nm"
     flux_unit: str = "ph/s"
+    use_file_scaling: bool = False  # CSV: use # scaling: from file header
     finesse: Optional[float] = None  # FP finesse; None = use band default
     fp_gap_mm: Optional[float] = None  # FP gap in mm; None = auto-compute
 
