@@ -1,10 +1,18 @@
-# ANDES E2E Simulation Instructions
+# E2E Simulation Instructions
 
-## Framework: andes_simulator
+## Multi-instrument framework
 
-**Status**: Production ready (validated for R-band; other bands expected to work similarly)
+The `andes_simulator` package supports multiple ELT spectrographs via separate CLIs
+that share the same PyEchelle-based simulation core:
+- `andes-sim` -- ANDES high-resolution echelle (bands: U, B, V, R, IZ, Y, J, H)
+- `mosaic-sim` -- MOSAIC multi-object VPH spectrograph (bands: VIS)
 
-### Simulation Commands
+Instrument-specific configs live in `core/andes.py` and `core/mosaic.py`.
+The registry in `core/instruments.py` merges them so downstream code is instrument-agnostic.
+
+**Status**: Production ready for ANDES (validated for R-band). MOSAIC VIS basic support.
+
+### ANDES Simulation Commands
 
 ```bash
 # Flat field
@@ -31,6 +39,17 @@ uv run andes-sim simulate --band R --source fp --fiber 21 --velocity-shift data/
 uv run andes-sim simulate --band R --source lfc --fiber 21 --x-shift 0.5
 ```
 
+### MOSAIC Simulation Commands
+
+```bash
+# Flat field (VIS band, 75 fibers, single VPH order)
+uv run mosaic-sim simulate --band VIS --source flat --subslit all
+uv run mosaic-sim simulate --band VIS --source flat --fiber 1
+
+# Fabry-Perot
+uv run mosaic-sim simulate --band VIS --source fp --fiber 1 --flux 100
+```
+
 ### Post-Processing Commands
 
 ```bash
@@ -46,8 +65,9 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 - `--source`: Source type (`flat`, `fp`, `lfc`) or path to CSV spectrum file
 - `--hdf`: Custom HDF model file (infers band from wavelength content)
 - `--subslit`: Fiber selection for simulations
-  - All bands: `all`, `single`, `even`, `odd`, `slitA`, `slitB`, `cal`
-  - YJH only: `ifu`, `ring0`, `ring1`, `ring2`, `ring3`, `ring4`
+  - ANDES all bands: `all`, `even`, `odd`, `slitA`, `slitB`, `cal`
+  - ANDES YJH only: `ifu`, `ring0`, `ring1`, `ring2`, `ring3`, `ring4`
+  - MOSAIC: `all`, `even`, `odd`
 - `--mode`: Combination mode for post-processing (`all`, `even_odd`, `slits`, `custom`)
 - `--velocity-shift`: Doppler shift in m/s (scalar or JSON file with per-fiber values)
 - `--x-shift`: Constant pixel shift (scalar or JSON file), applied via LocalDisturber `d_tx`
@@ -67,10 +87,10 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 ```
 src/
 ├── andes_simulator/    # Main package
-│   ├── cli/            # Command-line interface
-│   ├── core/           # Simulator, config, sources
+│   ├── cli/            # CLIs: andes.py, mosaic.py (entry points), main.py (factory)
+│   ├── core/           # andes.py, mosaic.py (instrument configs), instruments.py (registry)
 │   ├── sources/        # Source spectrum generators
 │   └── postprocess/    # combine, psf tools
-├── HDF/                # ZEMAX optical models (.hdf)
+├── HDF/                # ZEMAX optical models (.hdf) for all instruments
 └── SED/                # Spectral data (.csv)
 ```

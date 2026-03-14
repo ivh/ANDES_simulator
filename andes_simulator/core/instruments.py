@@ -1,213 +1,56 @@
 """
-Instrument configurations for ANDES spectrograph bands.
+Instrument configuration registry.
 
-Defines the fiber counts, detector sizes, HDF models, and other 
-band-specific parameters for all ANDES spectral channels.
+Merges band definitions from instrument-specific modules (andes, mosaic)
+into a single namespace. All downstream code imports from here.
 """
 
 from pathlib import Path
 from typing import Dict, List, Any
 
-# Approximate echelle order numbers at band center (from ZEMAX models)
-BAND_ORDER_ESTIMATES = {
-    'U': 130,
-    'B': 100,
-    'V': 85,
-    'R': 90,   # orders 81-98
-    'IZ': 55,
-    'Y': 118,  # orders 109-127
-    'J': 99,   # orders 90-108
-    'H': 76,   # orders 68-83
-}
+from . import andes as _andes
+from . import mosaic as _mosaic
 
-DEFAULT_SCALING = {
-    'U': 2.1e5, 'B': 1e5, 'V': 1e5, 'R': 8e4,
-    'IZ': 9e4, 'Y': 1.7e4, 'J': 1.4e4, 'H': 1.1e4,
-}
+_INSTRUMENT_MODULES = [_andes, _mosaic]
 
-# Default Fabry-Perot finesse per band (matching original CSV assignments)
-DEFAULT_FINESSE = {
-    'U': 23, 'R': 23, 'IZ': 23,
-    'B': 26, 'V': 26, 'Y': 26, 'J': 26, 'H': 26,
-}
+# Merged dicts — band names must be unique across instruments
+INSTRUMENTS = {**_andes.INSTRUMENTS, **_mosaic.INSTRUMENTS}
+BAND_ORDER_ESTIMATES = {**_andes.BAND_ORDER_ESTIMATES, **_mosaic.BAND_ORDER_ESTIMATES}
+DEFAULT_SCALING = {**_andes.DEFAULT_SCALING, **_mosaic.DEFAULT_SCALING}
+DEFAULT_FINESSE = {**_andes.DEFAULT_FINESSE, **_mosaic.DEFAULT_FINESSE}
+FIBER_CONFIG = {**_andes.FIBER_CONFIG, **_mosaic.FIBER_CONFIG}
 
-# Instrument configurations for each spectral band
-INSTRUMENTS = {
-    # Near-infrared bands (75 fibers)
-    'Y': {
-        'n_fibers': 75,
-        'detector_size': (4096, 4096),
-        'pixel_size': 15,  # microns
-        'hdf_models': {
-            'default': 'ANDES_75fibre_Y',
-            'with_fiber_eff': 'ANDES_Y01_wFiberEff'
-        },
-        'zemax_files': {
-            'Y': 'HIRES_Y_21jan2022_sconf_noap.zmx'
-        },
-        'diffraction_orders': list(range(109, 127)),
-        'sampling': 2.1,
-        'skip_fibers': [3, 4, 36, 37, 39, 40, 72, 73]
-    },
-    'J': {
-        'n_fibers': 75,
-        'detector_size': (4096, 4096),
-        'pixel_size': 15,
-        'hdf_models': {
-            'default': 'ANDES_75fibre_J'
-        },
-        'zemax_files': {
-            'J': 'HIRES_J_21jan2022_sconf_noap.zmx'
-        },
-        'diffraction_orders': list(range(90, 108)),
-        'sampling': 2.1,
-        'skip_fibers': [3, 4, 36, 37, 39, 40, 72, 73]
-    },
-    'H': {
-        'n_fibers': 75,
-        'detector_size': (4096, 4096),
-        'pixel_size': 15,
-        'hdf_models': {
-            'default': 'ANDES_75fibre_H'
-        },
-        'zemax_files': {
-            'H': 'HIRES_H_21jan2022_sconf.zmx'
-        },
-        'diffraction_orders': list(range(68, 83)),
-        'sampling': 2.1,
-        'skip_fibers': [3, 4, 36, 37, 39, 40, 72, 73]
-    },
-    
-    # Optical bands (66 fibers)
-    'R': {
-        'n_fibers': 66,
-        'detector_size': (9216, 9232),
-        'pixel_size': 15,
-        'hdf_models': {
-            'default': 'ANDES_123_R3',
-            'thermal_variants': [
-                'ANDES_full_F18A33_win_jmr_MC_T0019_Rband_p0',
-                'Andes_full_F18A33_win_jmr_MC_T0108_Rband_P0_cfg1'
-            ]
-        },
-        'sampling': 4.0,
-        'skip_fibers': [32, 35]
-    },
-    'IZ': {
-        'n_fibers': 66,
-        'detector_size': (9216, 9232),
-        'pixel_size': 15,
-        'hdf_models': {
-            'default': 'ANDES_123_IZ3',
-            'thermal_variants': [
-                'Andes_F18A33_VM246aa_win_jmr9_MC_T0045_IZband_P0_cf1',
-                'Andes_full_F18A33_win_jmr_MC_T0028_IZband_P0'
-            ]
-        },
-        'sampling': 4.0,
-        'skip_fibers': [32, 35]
-    },
-    'U': {
-        'n_fibers': 66,
-        'detector_size': (9216, 9232),
-        'pixel_size': 15,
-        'hdf_models': {
-            'default': 'ANDES_U_v88'
-        },
-        'sampling': 4.0,
-        'skip_fibers': [32, 35]
-    },
-    'B': {
-        'n_fibers': 66,
-        'detector_size': (9216, 9232),
-        'pixel_size': 15,
-        'hdf_models': {
-            'default': 'ANDES_B_v88'
-        },
-        'sampling': 4.0,
-        'skip_fibers': [32, 35]
-    },
-    'V': {
-        'n_fibers': 66,
-        'detector_size': (9216, 9232),
-        'pixel_size': 15,
-        'hdf_models': {
-            'default': 'ANDES_V_v88'
-        },
-        'sampling': 4.0,
-        'skip_fibers': [32, 35]
-    }
-}
+# Both on ELT; use ANDES telescope as canonical (identical values)
+TELESCOPE = _andes.TELESCOPE.copy()
 
 # Cache for wavelength ranges read from HDF files
 _wavelength_range_cache: Dict[str, tuple] = {}
 
-# Telescope configuration (ELT)
-TELESCOPE = {
-    'primary_diameter': 39.3,  # meters
-    'central_obstruction': 4.09  # meters
-}
 
-# Standard fiber sizes and configurations
-FIBER_CONFIG = {
-    'UBVRIZ': {
-        'n_fibers': 66,
-        'slits': {
-            'slitA': list(range(1, 32)),
-            'slitB': list(range(35, 66)),
-            'cal_fibers': [33, 34]
-        }
-    },
-    'YJH_SL': {
-        'fiber_size': 474,  # micrometers
-        'n_fibers': 75,
-        'slits': {
-            'slitA': list(range(4, 35)),
-            'slitB': list(range(42, 73)),
-            'cal_fibers': [1,37,38,39,75]
-        }
-    },
-    'YJH_IFU': {
-        'fiber_size': 474,  # micrometers
-        'n_fibers': 75,
-        'slits': {
-            'ring0': [3],
-            'ring1': [6,8,10,12,14,16],
-            'ring2': list(range(18, 18+12)),
-            'ring3': list(range(31, 31+18)),
-            'ring4': list(range(50, 50+24)),
-            'cal_fibers': [1,75]
-        }
-    }
-}
+def get_instrument_name(band: str) -> str:
+    """Get the instrument name for a band."""
+    for mod in _INSTRUMENT_MODULES:
+        if band in mod.INSTRUMENTS:
+            return mod.INSTRUMENT_NAME
+    raise ValueError(f"Unknown band '{band}'. Available: {list(INSTRUMENTS.keys())}")
 
 
 def get_instrument_config(band: str) -> Dict[str, Any]:
-    """
-    Get instrument configuration for a specific band.
-    
-    Parameters
-    ----------
-    band : str
-        Spectral band name (Y, J, H, R, IZ, U, B, V)
-        
-    Returns
-    -------
-    dict
-        Complete instrument configuration including telescope and fiber setup
-    """
+    """Get instrument configuration for a specific band."""
     if band not in INSTRUMENTS:
-        raise ValueError(f"Unknown band '{band}'. Available bands: {list(INSTRUMENTS.keys())}")
-    
+        raise ValueError(f"Unknown band '{band}'. Available: {list(INSTRUMENTS.keys())}")
+
     config = INSTRUMENTS[band].copy()
     config['telescope'] = TELESCOPE.copy()
-    
-    # Add appropriate fiber configuration
-    if band in ['Y', 'J', 'H']:
-        config['fiber_config'] = FIBER_CONFIG['YJH_SL'].copy()
-    else:
-        config['fiber_config'] = FIBER_CONFIG['UBVRIZ'].copy()
-    
+
+    fc_key = config.get('fiber_config_key')
+    if fc_key and fc_key in FIBER_CONFIG:
+        config['fiber_config'] = FIBER_CONFIG[fc_key].copy()
+
+    ifu_key = config.get('ifu_config_key')
+    if ifu_key and ifu_key in FIBER_CONFIG:
+        config['ifu_config'] = FIBER_CONFIG[ifu_key].copy()
+
     return config
 
 
@@ -222,57 +65,32 @@ def get_nir_bands() -> List[str]:
 
 
 def get_optical_bands() -> List[str]:
-    """Get list of optical bands (RIUZV).""" 
+    """Get list of optical bands (RIUZV)."""
     return ['R', 'IZ', 'U', 'B', 'V']
 
 
 def get_hdf_model_path(band: str, model_type: str = 'default', project_root: Path = None) -> Path:
-    """
-    Get the full path to an HDF model file.
-    
-    Parameters
-    ----------
-    band : str
-        Spectral band name
-    model_type : str
-        Type of model ('default', 'with_fiber_eff', or specific thermal variant)
-    project_root : Path, optional
-        Project root directory. If None, uses current file location.
-        
-    Returns
-    -------
-    Path
-        Full path to HDF model file
-    """
+    """Get the full path to an HDF model file."""
     if project_root is None:
         project_root = Path(__file__).parent.parent.parent
-    
+
     config = get_instrument_config(band)
-    
+
     if model_type == 'default':
         model_name = config['hdf_models']['default']
     elif model_type in config['hdf_models']:
         if isinstance(config['hdf_models'][model_type], list):
-            # For thermal variants, return the first one as default
             model_name = config['hdf_models'][model_type][0]
         else:
             model_name = config['hdf_models'][model_type]
     else:
-        # Assume it's a specific model name
         model_name = model_type
-    
+
     return project_root / 'HDF' / f'{model_name}.hdf'
 
 
 def _read_wavelength_range_from_hdf(hdf_path: Path) -> tuple:
-    """
-    Read wavelength range from an HDF model file.
-
-    Returns
-    -------
-    tuple
-        (wl_min, wl_max) in nm
-    """
+    """Read wavelength range from an HDF model file. Returns (wl_min, wl_max) in nm."""
     import h5py
 
     with h5py.File(hdf_path, 'r') as f:
@@ -292,28 +110,11 @@ def _read_wavelength_range_from_hdf(hdf_path: Path) -> tuple:
     if not wavelengths:
         raise ValueError(f"No wavelength data found in {hdf_path}")
 
-    # Convert micrometers to nm
     return min(wavelengths) * 1000, max(wavelengths) * 1000
 
 
 def get_band_wavelength_range(band: str, project_root: Path = None) -> tuple:
-    """
-    Get wavelength range for a band from its default HDF model.
-
-    Results are cached to avoid repeated file reads.
-
-    Parameters
-    ----------
-    band : str
-        Spectral band name (U, B, V, R, IZ, Y, J, H)
-    project_root : Path, optional
-        Project root directory
-
-    Returns
-    -------
-    tuple
-        (wl_min, wl_max) in nm
-    """
+    """Get wavelength range for a band from its default HDF model. Returns (wl_min, wl_max) in nm."""
     if band in _wavelength_range_cache:
         return _wavelength_range_cache[band]
 
@@ -324,39 +125,13 @@ def get_band_wavelength_range(band: str, project_root: Path = None) -> tuple:
 
 
 def get_all_band_wavelength_ranges(project_root: Path = None) -> Dict[str, tuple]:
-    """
-    Get wavelength ranges for all bands.
-
-    Returns
-    -------
-    dict
-        Mapping of band name to (wl_min, wl_max) in nm
-    """
+    """Get wavelength ranges for all bands."""
     return {band: get_band_wavelength_range(band, project_root)
             for band in INSTRUMENTS.keys()}
 
 
 def infer_band_from_hdf(hdf_path: Path, project_root: Path = None) -> str:
-    """
-    Infer spectral band from HDF file by reading wavelength coverage.
-
-    Parameters
-    ----------
-    hdf_path : Path
-        Path to HDF model file
-    project_root : Path, optional
-        Project root directory (for reading default HDF models)
-
-    Returns
-    -------
-    str
-        Inferred band name
-
-    Raises
-    ------
-    ValueError
-        If band cannot be determined from wavelength range
-    """
+    """Infer spectral band from HDF file by reading wavelength coverage."""
     wl_min, wl_max = _read_wavelength_range_from_hdf(hdf_path)
     wl_center = (wl_min + wl_max) / 2
 
@@ -370,28 +145,7 @@ def infer_band_from_hdf(hdf_path: Path, project_root: Path = None) -> str:
 
 def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None,
                                 project_root: Path = None) -> str:
-    """
-    Infer spectral band from wavelength limits.
-
-    Parameters
-    ----------
-    wl_min : float, optional
-        Minimum wavelength in nm
-    wl_max : float, optional
-        Maximum wavelength in nm
-    project_root : Path, optional
-        Project root directory
-
-    Returns
-    -------
-    str
-        Inferred band name
-
-    Raises
-    ------
-    ValueError
-        If band cannot be uniquely determined from wavelength range
-    """
+    """Infer spectral band from wavelength limits."""
     if wl_min is None and wl_max is None:
         raise ValueError("At least one of wl_min or wl_max must be provided")
 
@@ -416,25 +170,7 @@ def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None,
 
 def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = None,
                               project_root: Path = None) -> None:
-    """
-    Validate that wavelength limits fall within the band's range.
-
-    Parameters
-    ----------
-    band : str
-        Spectral band name
-    wl_min : float, optional
-        Minimum wavelength in nm
-    wl_max : float, optional
-        Maximum wavelength in nm
-    project_root : Path, optional
-        Project root directory
-
-    Raises
-    ------
-    ValueError
-        If wavelength limits are outside the band's range
-    """
+    """Validate that wavelength limits fall within the band's range."""
     if wl_min is None and wl_max is None:
         return
 
@@ -451,5 +187,3 @@ def validate_wavelength_range(band: str, wl_min: float = None, wl_max: float = N
             f"wl_max={wl_max}nm is above {band}-band range ({band_min:.1f}-{band_max:.1f}nm)")
     if wl_min is not None and wl_max is not None and wl_min >= wl_max:
         raise ValueError(f"wl_min={wl_min}nm must be less than wl_max={wl_max}nm")
-
-

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 from dataclasses import dataclass, field
 
-from .instruments import get_instrument_config, get_all_bands, FIBER_CONFIG, validate_wavelength_range
+from .instruments import get_instrument_config, get_all_bands, validate_wavelength_range
 
 
 @dataclass
@@ -179,26 +179,27 @@ class SimulationConfig:
             fibers = [f for f in range(1, n_fibers + 1) if f % 2 == 1]
 
         elif self.fibers.mode in ("slitA", "slitB", "cal"):
-            # Slit modes: use appropriate config based on band
-            if self.band in ['Y', 'J', 'H']:
-                fiber_cfg = FIBER_CONFIG['YJH_SL']['slits']
-            else:
-                fiber_cfg = FIBER_CONFIG['UBVRIZ']['slits']
+            fc = self.instrument_config.get('fiber_config', {})
+            slit_defs = fc.get('slits', {})
             key = 'cal_fibers' if self.fibers.mode == 'cal' else self.fibers.mode
-            fibers = list(fiber_cfg[key])
+            if key not in slit_defs:
+                raise ValueError(f"Mode '{self.fibers.mode}' not available for {self.band}-band")
+            fibers = list(slit_defs[key])
 
         elif self.fibers.mode in ("ifu", "ring0", "ring1", "ring2", "ring3", "ring4"):
-            # IFU modes: only for YJH bands
-            if self.band not in ['Y', 'J', 'H']:
-                raise ValueError("IFU/ring modes only applicable to YJH bands")
-            fiber_cfg = FIBER_CONFIG['YJH_IFU']['slits']
+            ifu_cfg = self.instrument_config.get('ifu_config', {})
+            ifu_slits = ifu_cfg.get('slits', {})
+            if not ifu_slits:
+                raise ValueError(f"IFU/ring modes not available for {self.band}-band")
             if self.fibers.mode == "ifu":
-                # All IFU fibers (all rings combined)
                 fibers = []
                 for key in ('ring0', 'ring1', 'ring2', 'ring3', 'ring4'):
-                    fibers.extend(fiber_cfg[key])
+                    if key in ifu_slits:
+                        fibers.extend(ifu_slits[key])
             else:
-                fibers = list(fiber_cfg[self.fibers.mode])
+                if self.fibers.mode not in ifu_slits:
+                    raise ValueError(f"Mode '{self.fibers.mode}' not available for {self.band}-band")
+                fibers = list(ifu_slits[self.fibers.mode])
 
         elif self.fibers.mode == "custom":
             if isinstance(self.fibers.fibers, list):

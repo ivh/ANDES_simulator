@@ -48,7 +48,8 @@ all = [
 ]
 
 [project.scripts]
-andes-sim = "andes_simulator.cli.main:main"
+andes-sim = "andes_simulator.cli.andes:main"
+mosaic-sim = "andes_simulator.cli.mosaic:main"
 
 [build-system]
 requires = ["hatchling"]

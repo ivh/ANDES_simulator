@@ -1,7 +1,11 @@
-# ANDES Simulator
+# ELT Spectrograph Simulator
 
-End-to-end simulations for the ANDES high-resolution spectrograph at ESO's ELT, based on
-the optical model (ZEMAX files) and [PyEchelle](https://gitlab.com/Stuermer/pyechelle).
+End-to-end simulations for ELT spectrographs, based on
+optical models (ZEMAX files) and [PyEchelle](https://gitlab.com/Stuermer/pyechelle).
+
+Supported instruments:
+- **ANDES** -- high-resolution echelle spectrograph (bands: U, B, V, R, IZ, Y, J, H)
+- **MOSAIC** -- multi-object VPH spectrograph (bands: VIS)
 
 This is a mostly vibe-coded (ClaudeCode with sprinkles of Codex and Gemini) command line
 interface to allow quick iterations on simulated frames. No guarantees.
@@ -10,20 +14,17 @@ interface to allow quick iterations on simulated frames. No guarantees.
 ## Quick Start
 
 ```bash
-# List available spectral bands
+# ANDES
 uv run andes-sim list-bands
-
-# Generate flat field calibration (R-band, single fiber)
 uv run andes-sim simulate --band R --source flat --fiber 21
-
-# Generate Fabry-Perot in the IFU for a small wavelength range in H-band
 uv run andes-sim simulate --source fp --subslit ifu --wl-min 1600 --wl-max 1603
-
-# Generate LFC (Laser Frequency Comb) in the calibration fibers, double default flux
 uv run andes-sim simulate --band R --source lfc --subslit cal --flux 2
-
-# Varying fiber efficiency in SL slit A
 uv run andes-sim simulate --source flat --band H --subslit slitA --wl-min 1600 --wl-max 1602 --fib-eff 0.5-0.95
+
+# MOSAIC
+uv run mosaic-sim list-bands
+uv run mosaic-sim simulate --band VIS --source flat --subslit all
+uv run mosaic-sim simulate --band VIS --source fp --fiber 1 --flux 100
 ```
 
 ## Installation
@@ -47,17 +48,15 @@ pip install -e .
 
 ## Command Line Interface
 
-### List options
+Each instrument has its own CLI (`andes-sim`, `mosaic-sim`) with the same subcommands.
 
 ```bash
-# List available commands
 uv run andes-sim --help
-
-# List options for simulation
+uv run mosaic-sim --help
 uv run andes-sim simulate --help
 ```
 
-### Calibration Simulations
+### ANDES Calibration Simulations
 
 ```bash
 # Flat field - various subslits
@@ -84,6 +83,17 @@ uv run andes-sim simulate --band R --source fp --fiber 21 --velocity-shift data/
 
 # Constant pixel x-shift - applied via LocalDisturber to the optical model
 uv run andes-sim simulate --band R --source lfc --fiber 21 --x-shift 0.5
+```
+
+### MOSAIC Simulations
+
+```bash
+# Flat field (VIS band, 75 fibers, single VPH order, 390-625nm)
+uv run mosaic-sim simulate --band VIS --source flat --subslit all
+uv run mosaic-sim simulate --band VIS --source flat --fiber 1
+
+# Fabry-Perot
+uv run mosaic-sim simulate --band VIS --source fp --fiber 1 --flux 100
 ```
 
 ### Post-Processing
@@ -129,9 +139,10 @@ ZEMAX optical model files (.hdf) containing:
 - Diffraction order information
 
 **Files include:**
-- NIR arms (Y, J, H): 75-fiber models
-- Optical arms (R, IZ): 66-fiber models
-- Thermal variant models (T0019, T0028, T0045, T0108)
+- ANDES NIR arms (Y, J, H): 75-fiber echelle models
+- ANDES Optical arms (R, IZ): 66-fiber echelle models
+- ANDES Thermal variant models (T0019, T0028, T0045, T0108)
+- MOSAIC VIS: 75-fiber VPH model (390-625nm, single order)
 
 ### SED/ - Spectral Data
 

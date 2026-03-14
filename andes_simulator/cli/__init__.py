@@ -1,5 +1,5 @@
-"""Command-line interface for ANDES simulation framework."""
+"""Command-line interface for spectrograph simulation frameworks."""
 
-from .main import main, cli
+from .main import create_cli
 
-__all__ = ['main', 'cli']
+__all__ = ['create_cli']
