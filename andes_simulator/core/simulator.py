@@ -281,12 +281,12 @@ class AndesSimulator:
         self.hdf_path = hdf_path
         self.logger.info(f"Using HDF model: {hdf_path}")
         
-        # Create spectrograph with optional pixel-space shift
+        # Pass Path object to ZEMAX to avoid pyechelle's buggy str.rstrip(".hdf")
         if self.config.x_shift is not None:
-            spec = LocalDisturber(ZEMAX(str(hdf_path)), d_tx=self.config.x_shift)
+            spec = LocalDisturber(ZEMAX(hdf_path), d_tx=self.config.x_shift)
             self.logger.info(f"Applied x-shift: {self.config.x_shift} pixels")
         else:
-            spec = ZEMAX(str(hdf_path))
+            spec = ZEMAX(hdf_path)
 
         # Apply fiber efficiency if specified
         if self.config.fib_eff:
