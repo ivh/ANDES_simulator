@@ -67,10 +67,9 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
         from ..core.instruments import infer_band_from_hdf, infer_band_from_wavelengths, get_hdf_model_path
 
         if hdf:
+            if band:
+                return band, str(hdf)
             inferred_band = infer_band_from_hdf(hdf, restrict_to=bands)
-            if band and band != inferred_band:
-                raise click.UsageError(
-                    f"--band {band} conflicts with HDF file (contains {inferred_band} data)")
             return inferred_band, str(hdf)
 
         if not band:

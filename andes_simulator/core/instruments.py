@@ -114,9 +114,18 @@ def _read_wavelength_range_from_hdf(hdf_path: Path) -> tuple:
 
 
 def get_band_wavelength_range(band: str, project_root: Path = None) -> tuple:
-    """Get wavelength range for a band from its default HDF model. Returns (wl_min, wl_max) in nm."""
+    """Get wavelength range for a band. Returns (wl_min, wl_max) in nm.
+
+    Uses the instrument config's wavelength_range if present, otherwise reads
+    from the default HDF model file.
+    """
     if band in _wavelength_range_cache:
         return _wavelength_range_cache[band]
+
+    config = INSTRUMENTS.get(band, {})
+    if 'wavelength_range' in config:
+        _wavelength_range_cache[band] = config['wavelength_range']
+        return config['wavelength_range']
 
     hdf_path = get_hdf_model_path(band, 'default', project_root)
     wl_range = _read_wavelength_range_from_hdf(hdf_path)

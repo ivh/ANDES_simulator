@@ -62,18 +62,22 @@ _NIR_COMMON = {
 INSTRUMENTS = {
     'LR-blue': {
         **_VIS_COMMON,
+        'wavelength_range': (390, 625),
         'hdf_models': {'default': 'MOSAIC_VIS_LR_Blue'},
     },
     'LR-red': {
         **_VIS_COMMON,
+        'wavelength_range': (595, 952),
         'hdf_models': {'default': 'MOSAIC_VIS_LR_Red'},
     },
     'LR-J': {
         **_NIR_COMMON,
+        'wavelength_range': (950, 1340),
         'hdf_models': {'default': 'MOSAIC_NIR_LR_J'},
     },
     'LR-H': {
         **_NIR_COMMON,
+        'wavelength_range': (1430, 1800),
         'hdf_models': {'default': 'MOSAIC_NIR_LR_H'},
     },
 }
