@@ -124,6 +124,8 @@ def build_config_from_options(
         if fiber is None:
             raise click.BadParameter("--fiber required for single mode")
         fibers = [fiber]
+    elif fiber_mode == 'custom' and isinstance(fiber, list):
+        fibers = fiber
     else:
         fibers = "all"
     

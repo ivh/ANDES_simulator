@@ -27,22 +27,25 @@ TELESCOPE = {
 INSTRUMENTS = {
     'VIS': {
         'instrument_name': 'MOSAIC',
-        'n_fibers': 75,
-        'detector_size': (4096, 4096),
+        'n_fibers': 980,
+        'detector_size': (12288, 12288),
         'pixel_size': 15,
         'hdf_models': {
-            'default': 'MOSAIC_VIS',
+            'default': 'MOSAIC_VIS_LR_Blue_full',
+            'test_2bundle': 'MOSAIC_VIS_LR_Blue',
         },
         'diffraction_orders': [1],
-        'sampling': 4.0,
+        'sampling': 5.8,
         'skip_fibers': [],
         'fiber_config_key': 'MOSAIC_VIS',
+        'bundle_size': 7,
+        'n_bundles': 140,
     },
 }
 
 FIBER_CONFIG = {
     'MOSAIC_VIS': {
-        'n_fibers': 75,
+        'n_fibers': 980,
         'slits': {},
     },
 }

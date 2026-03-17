@@ -130,12 +130,16 @@ def get_all_band_wavelength_ranges(project_root: Path = None) -> Dict[str, tuple
             for band in INSTRUMENTS.keys()}
 
 
-def infer_band_from_hdf(hdf_path: Path, project_root: Path = None) -> str:
+def infer_band_from_hdf(hdf_path: Path, project_root: Path = None,
+                        restrict_to: List[str] = None) -> str:
     """Infer spectral band from HDF file by reading wavelength coverage."""
     wl_min, wl_max = _read_wavelength_range_from_hdf(hdf_path)
     wl_center = (wl_min + wl_max) / 2
 
-    for band in INSTRUMENTS.keys():
+    search_bands = restrict_to if restrict_to else list(INSTRUMENTS.keys())
+    for band in search_bands:
+        if band not in INSTRUMENTS:
+            continue
         low, high = get_band_wavelength_range(band, project_root)
         if low <= wl_center <= high:
             return band
@@ -144,13 +148,17 @@ def infer_band_from_hdf(hdf_path: Path, project_root: Path = None) -> str:
 
 
 def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None,
-                                project_root: Path = None) -> str:
+                                project_root: Path = None,
+                                restrict_to: List[str] = None) -> str:
     """Infer spectral band from wavelength limits."""
     if wl_min is None and wl_max is None:
         raise ValueError("At least one of wl_min or wl_max must be provided")
 
     matching_bands = []
-    for band in INSTRUMENTS.keys():
+    search_bands = restrict_to if restrict_to else list(INSTRUMENTS.keys())
+    for band in search_bands:
+        if band not in INSTRUMENTS:
+            continue
         low, high = get_band_wavelength_range(band, project_root)
         req_min = wl_min if wl_min is not None else low
         req_max = wl_max if wl_max is not None else high

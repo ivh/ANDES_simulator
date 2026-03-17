@@ -43,9 +43,12 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
             return int(value)
         except ValueError:
             pass
+        if value.startswith('bundle:'):
+            return value
         if value not in subslit_choices:
             raise click.BadParameter(
-                f"Must be fiber number or one of: {', '.join(subslit_choices)}")
+                f"Must be fiber number, bundle:N, bundle:N-M, "
+                f"or one of: {', '.join(subslit_choices)}")
         return value
 
     def common_options(f):
@@ -64,7 +67,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
         from ..core.instruments import infer_band_from_hdf, infer_band_from_wavelengths, get_hdf_model_path
 
         if hdf:
-            inferred_band = infer_band_from_hdf(hdf)
+            inferred_band = infer_band_from_hdf(hdf, restrict_to=bands)
             if band and band != inferred_band:
                 raise click.UsageError(
                     f"--band {band} conflicts with HDF file (contains {inferred_band} data)")
@@ -73,7 +76,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
         if not band:
             if wl_min is not None or wl_max is not None:
                 try:
-                    band = infer_band_from_wavelengths(wl_min, wl_max)
+                    band = infer_band_from_wavelengths(wl_min, wl_max, restrict_to=bands)
                     click.echo(f"Inferred band: {band} (from wavelength limits)")
                 except ValueError as e:
                     raise click.UsageError(str(e))
@@ -173,9 +176,34 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
         if isinstance(fiber_spec, int):
             fiber_mode = 'single'
             fiber = fiber_spec
+            custom_fibers = None
+        elif isinstance(fiber_spec, str) and fiber_spec.startswith('bundle:'):
+            from ..core.instruments import get_instrument_config
+            inst_cfg = get_instrument_config(band)
+            bundle_size = inst_cfg.get('bundle_size')
+            n_bundles = inst_cfg.get('n_bundles')
+            if not bundle_size:
+                raise click.UsageError(
+                    f"bundle: syntax not supported for {band}-band (no bundle_size in config)")
+            bundle_str = fiber_spec.split(':', 1)[1]
+            if '-' in bundle_str:
+                lo, hi = bundle_str.split('-', 1)
+                bundles = range(int(lo), int(hi) + 1)
+            else:
+                bundles = [int(bundle_str)]
+            custom_fibers = []
+            for b in bundles:
+                if b < 1 or (n_bundles and b > n_bundles):
+                    raise click.UsageError(f"Bundle {b} out of range (1-{n_bundles})")
+                start = (b - 1) * bundle_size + 1
+                custom_fibers.extend(range(start, start + bundle_size))
+            fiber_mode = 'custom'
+            fiber = None
+            click.echo(f"Bundle {bundle_str} -> fibers {custom_fibers}")
         else:
             fiber_mode = fiber_spec
             fiber = None
+            custom_fibers = None
 
         velocity_shift_file = None
         velocity_shift_value = None
@@ -235,7 +263,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
             fiber_mode=fiber_mode,
             output_dir=output_dir,
             output_name=output_name,
-            fiber=fiber,
+            fiber=custom_fibers if custom_fibers else fiber,
             flux=flux,
             scaling=scaling,
             velocity_shift=vshift_for_config,
