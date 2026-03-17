@@ -5,12 +5,12 @@
 The `andes_simulator` package supports multiple ELT spectrographs via separate CLIs
 that share the same PyEchelle-based simulation core:
 - `andes-sim` -- ANDES high-resolution echelle (bands: U, B, V, R, IZ, Y, J, H)
-- `mosaic-sim` -- MOSAIC multi-object VPH spectrograph (bands: VIS)
+- `mosaic-sim` -- MOSAIC multi-object VPH spectrograph (bands: LR-blue, LR-red, LR-J, LR-H, HR-B1, HR-R1, HR-B2, HR-H)
 
 Instrument-specific configs live in `core/andes.py` and `core/mosaic.py`.
 The registry in `core/instruments.py` merges them so downstream code is instrument-agnostic.
 
-**Status**: Production ready for ANDES (validated for R-band). MOSAIC VIS basic support.
+**Status**: Production ready for ANDES (validated for R-band). MOSAIC basic support.
 
 ### ANDES Simulation Commands
 
@@ -42,12 +42,19 @@ uv run andes-sim simulate --band R --source lfc --fiber 21 --x-shift 0.5
 ### MOSAIC Simulation Commands
 
 ```bash
-# Flat field (VIS band, 75 fibers, single VPH order)
-uv run mosaic-sim simulate --band VIS --source flat --subslit all
-uv run mosaic-sim simulate --band VIS --source flat --fiber 1
+# Flat field
+uv run mosaic-sim simulate --band LR-blue --source flat --subslit all
+uv run mosaic-sim simulate --band LR-blue --source flat --fiber bundle:1
 
 # Fabry-Perot
-uv run mosaic-sim simulate --band VIS --source fp --fiber 1 --flux 100
+uv run mosaic-sim simulate --band LR-blue --source fp --fiber bundle:1 --flux 100
+
+# Bundle selection (7 fibers/bundle for LR and NIR, 19 fibers/bundle for VIS HR)
+uv run mosaic-sim simulate --band LR-red --source flat --fiber bundle:5
+uv run mosaic-sim simulate --band LR-J --source flat --fiber bundle:1-10
+
+# NIR HR
+uv run mosaic-sim simulate --band HR-H --source flat --fiber bundle:1
 ```
 
 ### Post-Processing Commands
@@ -69,6 +76,7 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
   - ANDES YJH only: `cal_ifu`
   - ANDES YJH only: `ifu`, `ring0`, `ring1`, `ring2`, `ring3`, `ring4`
   - MOSAIC: `all`, `even`, `odd`
+  - MOSAIC bundles: `bundle:N`, `bundle:N-M` (e.g. `bundle:5`, `bundle:1-10`)
 - `--mode`: Combination mode for post-processing (`all`, `even_odd`, `slits`, `custom`)
 - `--velocity-shift`: Doppler shift in m/s (scalar or JSON file with per-fiber values)
 - `--x-shift`: Constant pixel shift (scalar or JSON file), applied via LocalDisturber `d_tx`

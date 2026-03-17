@@ -5,7 +5,7 @@ optical models (ZEMAX files) and [PyEchelle](https://gitlab.com/Stuermer/pyechel
 
 Supported instruments:
 - **ANDES** -- high-resolution echelle spectrograph (bands: U, B, V, R, IZ, Y, J, H)
-- **MOSAIC** -- multi-object VPH spectrograph (bands: VIS)
+- **MOSAIC** -- multi-object VPH spectrograph (LR: blue, red, J, H; HR: B1, R1, B2, H)
 
 This is a mostly vibe-coded (ClaudeCode with sprinkles of Codex and Gemini) command line
 interface to allow quick iterations on simulated frames. No guarantees.
@@ -23,8 +23,9 @@ uv run andes-sim simulate --source flat --band H --subslit slitA --wl-min 1600 -
 
 # MOSAIC
 uv run mosaic-sim list-bands
-uv run mosaic-sim simulate --band VIS --source flat --subslit all
-uv run mosaic-sim simulate --band VIS --source fp --fiber 1 --flux 100
+uv run mosaic-sim simulate --band LR-blue --source flat --subslit all
+uv run mosaic-sim simulate --band LR-blue --source flat --fiber bundle:1
+uv run mosaic-sim simulate --band LR-J --source fp --fiber bundle:1-10 --flux 100
 ```
 
 ## Installation
@@ -88,12 +89,19 @@ uv run andes-sim simulate --band R --source lfc --fiber 21 --x-shift 0.5
 ### MOSAIC Simulations
 
 ```bash
-# Flat field (VIS band, 75 fibers, single VPH order, 390-625nm)
-uv run mosaic-sim simulate --band VIS --source flat --subslit all
-uv run mosaic-sim simulate --band VIS --source flat --fiber 1
+# VIS LR (980 fibers = 140 bundles x 7, 12288x12288 detector)
+uv run mosaic-sim simulate --band LR-blue --source flat --subslit all
+uv run mosaic-sim simulate --band LR-red --source flat --fiber bundle:1
 
-# Fabry-Perot
-uv run mosaic-sim simulate --band VIS --source fp --fiber 1 --flux 100
+# NIR LR (630 fibers = 90 bundles x 7, 4096x4096 detector)
+uv run mosaic-sim simulate --band LR-J --source flat --fiber bundle:1-10
+uv run mosaic-sim simulate --band LR-H --source fp --fiber bundle:5 --flux 100
+
+# HR modes (VIS HR: 1140 fibers = 60 bundles x 19; NIR HR: 630 fibers)
+uv run mosaic-sim simulate --band HR-H --source flat --fiber bundle:1
+
+# Bundle selection: bundle:N or bundle:N-M
+uv run mosaic-sim simulate --band LR-blue --source fp --fiber bundle:50-60 --flux 100
 ```
 
 ### Post-Processing
@@ -142,7 +150,10 @@ ZEMAX optical model files (.hdf) containing:
 - ANDES NIR arms (Y, J, H): 75-fiber echelle models
 - ANDES Optical arms (R, IZ): 66-fiber echelle models
 - ANDES Thermal variant models (T0019, T0028, T0045, T0108)
-- MOSAIC VIS: 75-fiber VPH model (390-625nm, single order)
+- MOSAIC VIS LR: 980-fiber VPH models (Blue 390-625nm, Red 595-952nm)
+- MOSAIC VIS HR: 1140-fiber VPH models (B1 505-580nm, R1 610-680nm, B2 393-458nm)
+- MOSAIC NIR LR: 630-fiber VPH models (J 950-1340nm, H 1430-1800nm)
+- MOSAIC NIR HR: 630-fiber VPH model (H 1520-1620nm)
 
 ### SED/ - Spectral Data
 
@@ -153,4 +164,4 @@ Fabry-Perot spectral energy distributions (.csv):
 
 ---
 
-*Last updated: 2026-02-23*
+*Last updated: 2026-03-17*
