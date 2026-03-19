@@ -48,23 +48,24 @@ Other workarounds:
 |--------|-------|------|-----------------|-----------------|-------|--------|
 | 1      | LR-B  | LR   | 0.390–0.625     | 1335            | 19.95°| Done (1.9 GB) |
 | 2      | LR-R  | LR   | 0.595–0.952     | 876             | 19.95°| Done (1.9 GB) |
-| 3      | HR-B1 | HR   | 0.505–0.580     | 2703            | 47.5° | Later |
-| 4      | HR-R1 | HR   | 0.610–0.680     | 2278            | 47.5° | Later |
-| 5      | HR-B2 | HR   | 0.393–0.458     | 3442            | 47.5° | Later |
-| 6      | HR-R2 | HR   | 0.765–0.890     | 1770            | 47.5° | Later |
+| 3      | HR-B1 | HR   | 0.505–0.580     | 2703            | 47.5° | Done (2.1 GB) |
+| 4      | HR-R1 | HR   | 0.610–0.680     | 2278            | 47.5° | Done (2.1 GB) |
+| 5      | HR-B2 | HR   | 0.393–0.458     | 3442            | 47.5° | Done (2.1 GB) |
+| 6      | HR-R2 | HR   | 0.765–0.890     | 1770            | 47.5° | Done (2.1 GB) |
 
 VIS LR: 140 bundles × 7 fibers = 980, fiber pitch 177 µm, bundle gap 177 µm,
 detector 12288×12288 (2×2 mosaic 6K×6K), 15 µm/px. ~4 hours per HDF.
 
-VIS HR: 60 objects, 19 fibers/bundle, 152 µm pitch. Not yet attempted.
+VIS HR: 60 bundles × 19 fibers = 1140, fiber pitch 152 µm, bundle gap 152 µm,
+detector 12288×12288, 15 µm/px. ~4 hours per HDF.
 
 ### NIR (`Mosaic_2Cam.ZMX`, 71 surfaces, 3 multi-configs)
 
 | Config | Name  | Mode | Wavelength (µm) | VPH (lpm) | CWL (µm) | Status |
 |--------|-------|------|-----------------|-----------|-----------|--------|
-| 1      | LR-J  | LR   | 0.95–1.34       | 514       | 1.145     | Building |
-| 2      | LR-H  | LR   | 1.43–1.80       | 451       | 1.615     | Queued |
-| 3      | HR    | HR   | 1.52–1.62       | 1003      | 1.570     | Queued |
+| 1      | LR-J  | LR   | 0.95–1.34       | 514       | 1.145     | Done (1.2 GB) |
+| 2      | LR-H  | LR   | 1.43–1.80       | 451       | 1.615     | Done (1.2 GB) |
+| 3      | HR    | HR   | 1.52–1.62       | 1003      | 1.570     | Done (1.2 GB) |
 
 NIR: 90 bundles × 7 fibers = 630, fiber core 150 µm, pitch 203 µm,
 bundle gap 203 µm, detector 4096×4096, 15 µm/px. ~20 min per HDF.
@@ -188,10 +189,13 @@ Notes on the simulator:
 
 - [x] VIS LR-B HDF (config 1) — done, 1.9 GB
 - [x] VIS LR-R HDF (config 2) — done, 1.9 GB
-- [~] NIR LR-J HDF (config 1) — rebuilding with all fixes
-- [~] NIR LR-H HDF (config 2) — queued
-- [~] NIR HR HDF (config 3) — queued
+- [x] NIR LR-J HDF (config 1) — done, 1.2 GB
+- [x] NIR LR-H HDF (config 2) — done, 1.2 GB
+- [x] NIR HR HDF (config 3) — done, 1.2 GB
+- [x] VIS HR-B1 (config 3) — done, 2.1 GB
+- [x] VIS HR-R1 (config 4) — done, 2.1 GB
+- [x] VIS HR-B2 (config 5) — done, 2.1 GB
+- [x] VIS HR-R2 (config 6) — done, 2.1 GB
 - [ ] Calibrate NIR fiber pitch (203 µm) by comparing to independent sim
-- [ ] VIS HR modes (configs 3–6) — later
 - [ ] Detector choice not finalized (CCD290-99 vs STA5800) — pixel size may change
 - [ ] Find or create CRIOGENICI glass catalog (referenced in ZMX but not bundled)

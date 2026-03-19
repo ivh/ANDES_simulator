@@ -3,24 +3,24 @@
 INSTRUMENT_NAME = 'MOSAIC'
 
 MOSAIC_BANDS = ['LR-blue', 'LR-red', 'LR-J', 'LR-H',
-                'HR-B1', 'HR-R1', 'HR-B2', 'HR-H']
+                'HR-B1', 'HR-R1', 'HR-B2', 'HR-R2', 'HR-H']
 
 SUBSLIT_CHOICES = ['all', 'even', 'odd']
 
 # Single VPH order for all bands
 BAND_ORDER_ESTIMATES = {
     'LR-blue': 1, 'LR-red': 1, 'LR-J': 1, 'LR-H': 1,
-    'HR-B1': 1, 'HR-R1': 1, 'HR-B2': 1, 'HR-H': 1,
+    'HR-B1': 1, 'HR-R1': 1, 'HR-B2': 1, 'HR-R2': 1, 'HR-H': 1,
 }
 
 DEFAULT_SCALING = {
     'LR-blue': 1e3, 'LR-red': 1e3, 'LR-J': 1e3, 'LR-H': 1e3,
-    'HR-B1': 1e3, 'HR-R1': 1e3, 'HR-B2': 1e3, 'HR-H': 1e3,
+    'HR-B1': 1e3, 'HR-R1': 1e3, 'HR-B2': 1e3, 'HR-R2': 1e3, 'HR-H': 1e3,
 }
 
 DEFAULT_FINESSE = {
     'LR-blue': 23, 'LR-red': 23, 'LR-J': 23, 'LR-H': 23,
-    'HR-B1': 23, 'HR-R1': 23, 'HR-B2': 23, 'HR-H': 23,
+    'HR-B1': 23, 'HR-R1': 23, 'HR-B2': 23, 'HR-R2': 23, 'HR-H': 23,
 }
 
 TELESCOPE = {
@@ -97,6 +97,11 @@ INSTRUMENTS = {
         **_VIS_HR,
         'wavelength_range': (393, 458),
         'hdf_models': {'default': 'MOSAIC_VIS_HR_B2'},
+    },
+    'HR-R2': {
+        **_VIS_HR,
+        'wavelength_range': (765, 890),
+        'hdf_models': {'default': 'MOSAIC_VIS_HR_R2'},
     },
     # NIR LR
     'LR-J': {
