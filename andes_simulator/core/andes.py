@@ -161,7 +161,7 @@ FIBER_CONFIG = {
         'n_fibers': 66,
         'slits': {
             'slitA': list(range(1, 32)),
-            'slitB': list(range(35, 66)),
+            'slitB': list(range(36, 67)),
             'cal_fibers': [33, 34]
         }
     },
