@@ -58,6 +58,35 @@ def run_simulation_command(
         sys.exit(1)
 
 
+def resolve_source_scaling(source_type: str, band: str, flux: float,
+                            user_scaling: Optional[float]) -> tuple:
+    """Resolve the final source scaling_factor from flux/scaling inputs.
+
+    `user_scaling` is the explicit override (CLI --scaling or YAML
+    source.scaling_factor); if None, the band's DEFAULT_SCALING is used.
+    `flux` is the user's multiplier. LFC and FP get type-specific divisors
+    because they concentrate energy into lines/peaks.
+
+    Returns (scaling_factor, use_file_scaling_flag). The flag is None for
+    non-csv sources.
+    """
+    from ..core.instruments import DEFAULT_SCALING
+
+    if source_type == 'csv':
+        # CSV: file header may carry a default scaling; --flux multiplies,
+        # explicit --scaling overrides the file default.
+        value = flux * user_scaling if user_scaling is not None else flux
+        return value, (user_scaling is None)
+
+    base = user_scaling if user_scaling is not None else DEFAULT_SCALING.get(band, 1e5)
+    effective = flux * base
+    if source_type == 'lfc':
+        effective /= 20
+    elif source_type == 'fabry_perot':
+        effective /= 100
+    return effective, None
+
+
 def build_config_from_options(
     simulation_type: str,
     band: str,
@@ -118,7 +147,7 @@ def build_config_from_options(
         Complete simulation configuration
     """
     from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
-    
+
     # Determine fibers based on mode
     if fiber_mode == 'single':
         if fiber is None:
@@ -128,24 +157,16 @@ def build_config_from_options(
         fibers = fiber
     else:
         fibers = "all"
-    
+
     # Build source config
     source_kwargs = {'type': source_type, 'flux': flux, 'flux_unit': flux_unit}
-    from ..core.instruments import DEFAULT_SCALING
-    if source_type == 'csv':
-        # For CSV sources: scaling from file header (# scaling: VALUE),
-        # --flux is a multiplier, --scaling overrides file default
-        source_kwargs['scaling_factor'] = flux * scaling if scaling is not None else flux
-        source_kwargs['use_file_scaling'] = (scaling is None)
-    else:
-        effective_scaling = flux * (scaling if scaling is not None else DEFAULT_SCALING.get(band, 1e5))
-        if source_type == 'lfc':
-            effective_scaling /= 20
-        elif source_type == 'fabry_perot':
-            effective_scaling /= 100
-        source_kwargs['scaling_factor'] = effective_scaling
+    scaling_factor, use_file_scaling = resolve_source_scaling(
+        source_type, band, flux, scaling)
+    source_kwargs['scaling_factor'] = scaling_factor
+    if use_file_scaling is not None:
+        source_kwargs['use_file_scaling'] = use_file_scaling
     if source_type == 'constant':
-        source_kwargs['flux'] = source_kwargs['scaling_factor']
+        source_kwargs['flux'] = scaling_factor
     if spectrum_path is not None:
         source_kwargs['filepath'] = str(spectrum_path)
     if source_type == 'fabry_perot':

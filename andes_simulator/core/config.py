@@ -28,7 +28,10 @@ class SourceConfig:
     """Configuration for source spectrum."""
     type: str = "constant"  # constant, csv, fabry_perot
     flux: float = 1.0
-    scaling_factor: float = 1.0
+    # None = apply band default via resolve_source_scaling (see cli/utils.py).
+    # run-config resolves this after loading YAML; the CLI simulate path fills
+    # it in before constructing SourceConfig, so it never sees None.
+    scaling_factor: Optional[float] = None
     filepath: Optional[str] = None  # For CSV sources
     wavelength_unit: str = "nm"
     flux_unit: str = "ph/s"

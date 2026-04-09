@@ -549,8 +549,23 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
     def run_config(ctx, config, dry_run):
         """Run simulation from YAML configuration file."""
         from ..core.config import SimulationConfig
+        from .utils import resolve_source_scaling
 
         sim_config = SimulationConfig.from_yaml(config)
+
+        # Apply CLI-equivalent defaulting when the YAML leaves scaling_factor
+        # unset: use source.flux as the multiplier against the band default,
+        # with the LFC/FP divisor tweaks.
+        if sim_config.source.scaling_factor is None:
+            resolved, _ = resolve_source_scaling(
+                sim_config.source.type,
+                sim_config.band,
+                sim_config.source.flux,
+                None,
+            )
+            sim_config.source.scaling_factor = resolved
+            if sim_config.source.type == 'constant':
+                sim_config.source.flux = resolved
 
         run_simulation_command(
             sim_config,
