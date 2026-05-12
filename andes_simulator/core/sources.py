@@ -41,6 +41,8 @@ class SourceFactory:
         self.logger = logging.getLogger(__name__)
         self._temp_files: List[Any] = []  # Track temp files for cleanup
         self._filtered_cache = {}
+        self._micron_cache = {}
+        self._scaled_cache = {}
         self._fp_source = None
     
     def create_source(self, config: SourceConfig, band: str = None,
@@ -250,6 +252,11 @@ class SourceFactory:
 
     def _scale_csv_flux(self, csv_path: Path, scale: float) -> Path:
         """Multiply the flux column of a two-column CSV by *scale*."""
+        key = (csv_path, scale)
+        cached = self._scaled_cache.get(key)
+        if cached is not None:
+            return cached
+
         temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
         with csv_path.open('r') as src:
             for line in src:
@@ -264,7 +271,9 @@ class SourceFactory:
                 temp_file.write(','.join(parts) + '\n')
         temp_file.close()
         self._temp_files.append(temp_file)
-        return Path(temp_file.name)
+        scaled_path = Path(temp_file.name)
+        self._scaled_cache[key] = scaled_path
+        return scaled_path
 
     def _get_fp_source(self, config: SourceConfig, band: str,
                        wl_min: Optional[float] = None,
@@ -400,6 +409,11 @@ class SourceFactory:
         if unit in {"um", "micron", "microns", "\u00b5m"}:
             return csv_path
 
+        key = (csv_path, unit)
+        cached = self._micron_cache.get(key)
+        if cached is not None:
+            return cached
+
         scale = {"nm": 1e-3, "nanometer": 1e-3, "nanometers": 1e-3,
                  "aa": 1e-4, "a": 1e-4, "angstrom": 1e-4, "angstroms": 1e-4}
         factor = scale.get(unit.replace('\u00e5', 'angstrom'))
@@ -422,7 +436,9 @@ class SourceFactory:
                 temp_file.write(','.join(parts) + '\n')
         temp_file.close()
         self._temp_files.append(temp_file)
-        return Path(temp_file.name)
+        micron_path = Path(temp_file.name)
+        self._micron_cache[key] = micron_path
+        return micron_path
 
     def _to_nanometers(self, value: float, unit: Optional[str]) -> float:
         """Convert wavelength value from its unit to nanometers."""
