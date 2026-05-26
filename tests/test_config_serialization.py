@@ -167,3 +167,19 @@ def test_create_template_configs_produces_expected_files(tmp_path):
     assert "fabry_perot_all_fibers.yaml" in names
     assert "spectrum_simulation.yaml" in names
     assert "hdf_generation.yaml" in names
+
+
+# ---------- shipped example configs ----------
+
+EXAMPLES_DIR = (Path(__file__).parent.parent
+                / "andes_simulator" / "configs" / "examples")
+
+
+@pytest.mark.parametrize(
+    "yaml_path",
+    sorted(EXAMPLES_DIR.glob("*.yaml")),
+    ids=lambda p: p.name,
+)
+def test_shipped_example_loads(yaml_path):
+    """Every shipped example YAML must pass validation via from_yaml."""
+    SimulationConfig.from_yaml(yaml_path)

@@ -17,7 +17,7 @@ source:
   scaling_factor: 1.0
 
 fibers:
-  mode: even_odd
+  mode: even
   fibers: all
   skip_fibers: []
 

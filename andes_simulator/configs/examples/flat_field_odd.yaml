@@ -1,23 +1,23 @@
 simulation_type: flat_field
-band: IZ
+band: R
 exposure_time: 30.0
 hdf_model: null
 use_cuda: false
-max_cpu: 1
+max_cpu: 10  # Use performance cores only (M4 has 10 perf + 4 efficiency)
 velocity_shift: null
 thermal_model: null
 combine_fibers: false
 
 source:
   type: constant
-  flux: 0.001
+  flux: 1.0  # Flux density in ph/s/AA (ConstantPhotonFlux expects this unit)
   filepath: null
   wavelength_unit: nm
-  flux_unit: ph/s
+  flux_unit: ph/s/AA  # Flux per Angstrom - no conversion needed
   scaling_factor: 1.0
 
 fibers:
-  mode: slitA  # or slitB
+  mode: odd
   fibers: all
   skip_fibers: []
 
