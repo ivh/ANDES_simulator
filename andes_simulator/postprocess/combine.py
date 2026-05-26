@@ -6,7 +6,7 @@ integrated detector frames with various combination modes.
 """
 
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from astropy.io import fits
@@ -346,7 +346,7 @@ class FiberCombiner:
         
         # Create HDU with metadata
         hdu = fits.PrimaryHDU(image_data)
-        hdu.header['DATE-OBS'] = (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), 'Observation date')
+        hdu.header['DATE-OBS'] = (datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'), 'Observation date')
         hdu.header['INSTRUME'] = ('ANDES', 'Instrument name')
         hdu.header['BAND'] = self.band
         hdu.header['NFIBERS'] = self.n_fibers
