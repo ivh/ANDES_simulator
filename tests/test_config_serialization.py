@@ -91,11 +91,6 @@ def test_to_yaml_writes_file(tmp_path):
     assert data['fibers']['mode'] == 'single'
 
 
-@pytest.mark.xfail(reason=(
-    "to_yaml emits PSFConfig.kernel_size as !!python/tuple, which "
-    "from_yaml's safe_load rejects. Fix: convert tuple to list in to_yaml, "
-    "or use yaml.safe_dump."
-), strict=True)
 def test_yaml_round_trip_preserves_core_fields(tmp_path):
     original = SimulationConfig(
         simulation_type='flat_field',
@@ -113,7 +108,15 @@ def test_yaml_round_trip_preserves_core_fields(tmp_path):
 
     assert loaded.band == original.band
     assert loaded.simulation_type == original.simulation_type
+    assert loaded.exposure_time == original.exposure_time
     assert loaded.source.type == original.source.type
+    assert loaded.source.flux == original.source.flux
+    assert loaded.source.scaling_factor == original.source.scaling_factor
+    assert loaded.fibers.mode == original.fibers.mode
+    assert loaded.fibers.fibers == original.fibers.fibers
+    assert loaded.output.directory == original.output.directory
+    assert loaded.wl_min == original.wl_min
+    assert loaded.wl_max == original.wl_max
 
 
 def test_yaml_from_hand_written_file(tmp_path):
@@ -146,13 +149,21 @@ def test_from_yaml_missing_file_raises(tmp_path):
 
 # ---------- create_template_configs ----------
 
-@pytest.mark.xfail(reason=(
-    "create_template_configs uses mode='even_odd' and type='zemax', "
-    "neither of which pass SimulationConfig.validate(). Bug found by "
-    "tests; either remove the function or fix the templates."
-), strict=True)
 def test_create_template_configs_smoke(tmp_path):
-    """Templates must be loadable by from_yaml after creation."""
+    """Every generated template must round-trip through from_yaml."""
     create_template_configs(tmp_path)
-    for yaml_file in tmp_path.glob("*.yaml"):
+    yaml_files = list(tmp_path.glob("*.yaml"))
+    assert yaml_files, "no templates were created"
+    for yaml_file in yaml_files:
         SimulationConfig.from_yaml(yaml_file)
+
+
+def test_create_template_configs_produces_expected_files(tmp_path):
+    create_template_configs(tmp_path)
+    names = {p.name for p in tmp_path.glob("*.yaml")}
+    assert "flat_field_single_fiber.yaml" in names
+    assert "flat_field_even.yaml" in names
+    assert "flat_field_odd.yaml" in names
+    assert "fabry_perot_all_fibers.yaml" in names
+    assert "spectrum_simulation.yaml" in names
+    assert "hdf_generation.yaml" in names

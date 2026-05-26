@@ -383,18 +383,26 @@ class SimulationConfig:
         yaml_path = Path(yaml_path)
         yaml_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Convert to dictionary, handling dataclasses
+        def _yaml_safe(v):
+            # tuples become !!python/tuple under yaml.dump; safe_dump rejects
+            # them outright. Cast to list so the round-trip works with safe_load.
+            if isinstance(v, tuple):
+                return list(v)
+            return v
+
         data = {}
         for field_name, field_obj in self.__dataclass_fields__.items():
+            if field_name.startswith('_'):
+                continue
             value = getattr(self, field_name)
             if hasattr(value, '__dataclass_fields__'):
-                # Convert nested dataclass to dict
-                data[field_name] = {k: getattr(value, k) for k in value.__dataclass_fields__.keys()}
-            elif not field_name.startswith('_'):
-                data[field_name] = value
-        
+                data[field_name] = {k: _yaml_safe(getattr(value, k))
+                                    for k in value.__dataclass_fields__.keys()}
+            else:
+                data[field_name] = _yaml_safe(value)
+
         with open(yaml_path, 'w') as f:
-            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+            yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
 
 def create_template_configs(output_dir: Path) -> None:
@@ -422,16 +430,17 @@ def create_template_configs(output_dir: Path) -> None:
     )
     ff_single.to_yaml(output_dir / "flat_field_single_fiber.yaml")
     
-    # Flat field even/odd template
-    ff_even_odd = SimulationConfig(
-        simulation_type="flat_field",
-        band="R",
-        exposure_time=30.0,
-        source=SourceConfig(type="constant", flux=0.001),
-        fibers=FiberConfig(mode="even_odd"),
-        output=OutputConfig(directory="../{band}/")
-    )
-    ff_even_odd.to_yaml(output_dir / "flat_field_even_odd.yaml")
+    # Flat field even and odd templates (separate files; even_odd is not a
+    # validated single mode — run both to get even and odd combinations).
+    for mode in ("even", "odd"):
+        SimulationConfig(
+            simulation_type="flat_field",
+            band="R",
+            exposure_time=30.0,
+            source=SourceConfig(type="constant", flux=0.001),
+            fibers=FiberConfig(mode=mode),
+            output=OutputConfig(directory="../{band}/")
+        ).to_yaml(output_dir / f"flat_field_{mode}.yaml")
     
     # Fabry-Perot template
     fp_config = SimulationConfig(
@@ -457,11 +466,14 @@ def create_template_configs(output_dir: Path) -> None:
     )
     spectrum_config.to_yaml(output_dir / "spectrum_simulation.yaml")
     
-    # HDF generation template
+    # HDF generation template. hdf_generation does not consume the source
+    # at runtime (run_hdf_generation reads from ZEMAX directly), but the
+    # SourceConfig must still be one of the validated types; pick a
+    # harmless placeholder.
     hdf_config = SimulationConfig(
         simulation_type="hdf_generation",
         band="Y",
-        source=SourceConfig(type="zemax"),  # Special type for HDF generation
+        source=SourceConfig(type="constant"),
         output=OutputConfig(directory="HDF/")
     )
     hdf_config.to_yaml(output_dir / "hdf_generation.yaml")
