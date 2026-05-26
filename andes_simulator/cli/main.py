@@ -23,6 +23,30 @@ from .utils import (
 )
 
 
+def resolve_negative_fiber(fiber_spec, band):
+    """Map a negative fiber index to its positive 1-based equivalent.
+
+    -1 -> n_fibers, -2 -> n_fibers-1, ... -n_fibers -> 1.
+    Non-int inputs and non-negative ints are returned unchanged.
+    Raises click.UsageError for out-of-range negatives or bands without n_fibers.
+    """
+    if not isinstance(fiber_spec, int) or fiber_spec >= 0:
+        return fiber_spec
+    from ..core.instruments import get_instrument_config
+    inst_cfg = get_instrument_config(band)
+    n_fibers = inst_cfg.get('n_fibers')
+    if not n_fibers:
+        raise click.UsageError(
+            f"Cannot resolve negative fiber index for {band}-band (no n_fibers in config)")
+    resolved = n_fibers + 1 + fiber_spec
+    if resolved < 1:
+        raise click.UsageError(
+            f"Fiber index {fiber_spec} out of range for {band}-band "
+            f"(valid negative range: -{n_fibers}..-1)")
+    click.echo(f"Fiber {fiber_spec} -> {resolved} ({band}-band has {n_fibers} fibers)")
+    return resolved
+
+
 def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str]):
     """Build a Click CLI for a specific instrument.
 
@@ -90,7 +114,8 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
     def subslit_options(f):
         f = click.option('--subslit', '--fiber', 'fiber_spec', default='all',
                          callback=validate_fiber_spec, is_eager=True,
-                         help='Fiber number (e.g. 21) or mode (all, slitA, ifu, ...)')(f)
+                         help='Fiber number (e.g. 21; negative counts from end, -1=last) '
+                              'or mode (all, slitA, ifu, ...)')(f)
         return f
 
     def flux_options(f):
@@ -171,6 +196,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
                 f"Unknown source '{source_spec}'. Use: flat, fp, lfc, or path to CSV")
 
         band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
+        fiber_spec = resolve_negative_fiber(fiber_spec, band)
 
         if isinstance(fiber_spec, int):
             fiber_mode = 'single'
@@ -313,6 +339,8 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
         import json
         import numpy as np
         from ..core.config import SimulationConfig, SourceConfig, FiberConfig, OutputConfig
+
+        fiber_spec = resolve_negative_fiber(fiber_spec, band)
 
         if isinstance(fiber_spec, int):
             fiber_mode = 'single'
