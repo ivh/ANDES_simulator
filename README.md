@@ -4,7 +4,8 @@ End-to-end simulations for ELT spectrographs, based on
 optical models (ZEMAX files) and [PyEchelle](https://gitlab.com/Stuermer/pyechelle).
 
 Supported instruments:
-- **ANDES** -- high-resolution echelle spectrograph (bands: U, B, V, R, IZ, Y, J, H)
+- **ANDES** -- high-resolution echelle spectrograph (bands: U, B, V, R, IZ, Y, J, H;
+  plus single-fiber model variants Y_iq15, J_iq15, H_iq15)
 - **MOSAIC** -- multi-object VPH spectrograph (LR: blue, red, J, H; HR: B1, R1, B2, H)
 
 This is a mostly vibe-coded (ClaudeCode with sprinkles of Codex and Gemini) command line

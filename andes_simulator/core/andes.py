@@ -2,7 +2,8 @@
 
 INSTRUMENT_NAME = 'ANDES'
 
-ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H']
+ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H',
+               'Y_iq15', 'J_iq15', 'H_iq15']
 
 SUBSLIT_CHOICES = ['all', 'even', 'odd', 'slitA', 'slitB', 'cal_sl', 'cal_ifu',
                    'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']
@@ -16,16 +17,21 @@ BAND_ORDER_ESTIMATES = {
     'Y': 118,
     'J': 99,
     'H': 76,
+    'Y_iq15': 113,
+    'J_iq15': 99,
+    'H_iq15': 75,
 }
 
 DEFAULT_SCALING = {
     'U': 2.1e5, 'B': 1e5, 'V': 1e5, 'R': 8e4,
     'IZ': 9e4, 'Y': 1.7e4, 'J': 1.4e4, 'H': 1.1e4,
+    'Y_iq15': 1.7e4, 'J_iq15': 1.4e4, 'H_iq15': 1.1e4,
 }
 
 DEFAULT_FINESSE = {
     'U': 23, 'R': 23, 'IZ': 23,
     'B': 26, 'V': 26, 'Y': 26, 'J': 26, 'H': 26,
+    'Y_iq15': 26, 'J_iq15': 26, 'H_iq15': 26,
 }
 
 TELESCOPE = {
@@ -85,6 +91,44 @@ INSTRUMENTS = {
         'skip_fibers': [3, 4, 36, 37, 39, 40, 72, 73],
         'fiber_config_key': 'YJH_SL',
         'ifu_config_key': 'YJH_IFU',
+    },
+    'Y_iq15': {
+        'instrument_name': 'ANDES',
+        'variant_of': 'Y',
+        'n_fibers': 1,
+        'detector_size': (4096, 4096),
+        'pixel_size': 15,
+        'hdf_models': {
+            'default': 'ANDES_Y_master_rotfix_iq15'
+        },
+        'diffraction_orders': list(range(101, 127)),
+        # measured from LFC line FWHM (PyReduce examples/sampl_iq15.py)
+        'sampling': 2.21,
+    },
+    'J_iq15': {
+        'instrument_name': 'ANDES',
+        'variant_of': 'J',
+        'n_fibers': 1,
+        'detector_size': (4096, 4096),
+        'pixel_size': 15,
+        'hdf_models': {
+            'default': 'ANDES_J_master_rotfix_iq15'
+        },
+        'diffraction_orders': list(range(90, 108)),
+        'sampling': 2.29,
+    },
+    'H_iq15': {
+        'instrument_name': 'ANDES',
+        'variant_of': 'H',
+        'n_fibers': 1,
+        'detector_size': (4096, 4096),
+        'pixel_size': 15,
+        'hdf_models': {
+            'default': 'ANDES_H_master_rotfix_iq15'
+        },
+        # model has gaps in the order coverage
+        'diffraction_orders': [68, 69, 71, 72, 74, 75, 77, 78, 80, 81, 82],
+        'sampling': 2.40,
     },
     'R': {
         'instrument_name': 'ANDES',

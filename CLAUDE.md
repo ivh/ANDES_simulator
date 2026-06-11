@@ -4,7 +4,9 @@
 
 The `andes_simulator` package supports multiple ELT spectrographs via separate CLIs
 that share the same PyEchelle-based simulation core:
-- `andes-sim` -- ANDES high-resolution echelle (bands: U, B, V, R, IZ, Y, J, H)
+- `andes-sim` -- ANDES high-resolution echelle (bands: U, B, V, R, IZ, Y, J, H;
+  plus `Y_iq15`, `J_iq15`, `H_iq15`: single-fiber "master_rotfix_iq15" model variants,
+  use `--fiber 1`; H_iq15 has gaps in order coverage)
 - `mosaic-sim` -- MOSAIC multi-object VPH spectrograph (bands: LR-blue, LR-red, LR-J, LR-H, HR-B1, HR-R1, HR-B2, HR-H)
 
 Instrument-specific configs live in `core/andes.py` and `core/mosaic.py`.
@@ -91,6 +93,7 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 - **Sources**: Each fiber needs individual source object (no shared references)
 - **Array shapes**: Config uses (X,Y), FITS/numpy uses (Y,X)
 - **LFC**: Lines equidistant in velocity (~33 km/s for R-band), ~100-150 lines/order
+- **psf-process caveat**: `--fwhm` is labeled "arcseconds" but the conversion in `postprocess/psf.py` multiplies by the band's `sampling` config value (px per resolution element), so it effectively means FWHM in resolution elements. Also the real sampling varies significantly across the detector, so a single uniform Gaussian kernel is not a realistic PSF model. Revisit before relying on psf-process results.
 - **Velocity shift vs x-shift**: `--velocity-shift` uses PyEchelle's `set_radial_velocities` (Doppler, shifts source wavelengths). `--x-shift` uses `LocalDisturber(d_tx=...)` (constant pixel offset in all orders). Due to echelle optics (constant tx_span across orders), both produce nearly uniform pixel shifts (~3% variation across orders for Doppler).
 
 ## Directory Structure

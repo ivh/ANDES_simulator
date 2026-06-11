@@ -147,7 +147,9 @@ def infer_band_from_hdf(hdf_path: Path, project_root: Path = None,
 
     search_bands = restrict_to if restrict_to else list(INSTRUMENTS.keys())
     for band in search_bands:
-        if band not in INSTRUMENTS:
+        # model variants (e.g. Y_iq15) overlap their parent band's wavelength
+        # range; they must be selected explicitly via --band
+        if band not in INSTRUMENTS or 'variant_of' in INSTRUMENTS[band]:
             continue
         low, high = get_band_wavelength_range(band, project_root)
         if low <= wl_center <= high:
@@ -166,7 +168,7 @@ def infer_band_from_wavelengths(wl_min: float = None, wl_max: float = None,
     matching_bands = []
     search_bands = restrict_to if restrict_to else list(INSTRUMENTS.keys())
     for band in search_bands:
-        if band not in INSTRUMENTS:
+        if band not in INSTRUMENTS or 'variant_of' in INSTRUMENTS[band]:
             continue
         low, high = get_band_wavelength_range(band, project_root)
         req_min = wl_min if wl_min is not None else low
