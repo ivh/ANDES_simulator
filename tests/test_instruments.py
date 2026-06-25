@@ -42,14 +42,14 @@ def test_R_band_config_has_no_ifu():
 
 
 def test_mosaic_LR_blue_config():
-    cfg = get_instrument_config("LR-blue")
+    cfg = get_instrument_config("B_LR")
     assert cfg["n_fibers"] == 980
     assert cfg["bundle_size"] == 7
     assert cfg["n_bundles"] == 140
 
 
 def test_mosaic_HR_B1_has_19_fibers_per_bundle():
-    cfg = get_instrument_config("HR-B1")
+    cfg = get_instrument_config("B1_HR")
     assert cfg["n_fibers"] == 1140
     assert cfg["bundle_size"] == 19
     assert cfg["n_bundles"] == 60
@@ -75,7 +75,7 @@ def test_andes_bands_resolve_to_ANDES():
 
 
 def test_mosaic_bands_resolve_to_MOSAIC():
-    for band in ["LR-blue", "LR-red", "HR-B1", "HR-H"]:
+    for band in ["B_LR", "R_LR", "B1_HR", "H_HR"]:
         assert get_instrument_name(band) == "MOSAIC"
 
 
@@ -89,7 +89,7 @@ def test_get_instrument_name_unknown_band():
 def test_all_bands_includes_andes_and_mosaic():
     bands = get_all_bands()
     assert "R" in bands
-    assert "LR-blue" in bands
+    assert "B_LR" in bands
 
 
 def test_nir_bands_are_YJH():
@@ -110,8 +110,8 @@ def test_R_band_wavelength_range_reasonable():
 
 
 def test_mosaic_LR_blue_uses_config_range():
-    # LR-blue has wavelength_range in config (no HDF lookup needed)
-    wl_min, wl_max = get_band_wavelength_range("LR-blue")
+    # B_LR has wavelength_range in config (no HDF lookup needed)
+    wl_min, wl_max = get_band_wavelength_range("B_LR")
     assert wl_min == 390
     assert wl_max == 625
 
@@ -157,12 +157,12 @@ def test_validate_rejects_unknown_band():
 # ---------- infer_band_from_wavelengths ----------
 
 def test_infer_unique_band_within_restriction():
-    # Restricting to ANDES NIR removes MOSAIC LR-J ambiguity
+    # Restricting to ANDES NIR removes MOSAIC J_LR ambiguity
     assert infer_band_from_wavelengths(1000, 1100, restrict_to=["Y", "J", "H"]) == "Y"
 
 
 def test_infer_ambiguous_range_raises_with_candidates():
-    # ~1000nm overlaps Y and LR-J across the two instruments
+    # ~1000nm overlaps Y and J_LR across the two instruments
     with pytest.raises(ValueError, match="ambiguous"):
         infer_band_from_wavelengths(1000, 1050)
 

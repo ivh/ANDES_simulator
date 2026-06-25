@@ -36,8 +36,8 @@ def test_andes_list_bands(runner):
 def test_mosaic_list_bands(runner):
     res = runner.invoke(mosaic_cli, ['list-bands'])
     assert res.exit_code == 0
-    assert 'LR-blue' in res.output
-    assert 'HR-H' in res.output
+    assert 'B_LR' in res.output
+    assert 'H_HR' in res.output
 
 
 # ============================================================================
@@ -159,7 +159,7 @@ def test_simulate_bogus_subslit_rejected(runner):
 
 def test_mosaic_bundle_single(runner):
     res = runner.invoke(mosaic_cli, [
-        'simulate', '--band', 'LR-blue', '--source', 'flat',
+        'simulate', '--band', 'B_LR', '--source', 'flat',
         '--fiber', 'bundle:2', '--dry-run'])
     assert res.exit_code == 0, res.output
     # bundle 2 of size 7 (LR) -> fibers 8..14
@@ -169,7 +169,7 @@ def test_mosaic_bundle_single(runner):
 
 def test_mosaic_bundle_range(runner):
     res = runner.invoke(mosaic_cli, [
-        'simulate', '--band', 'LR-blue', '--source', 'flat',
+        'simulate', '--band', 'B_LR', '--source', 'flat',
         '--fiber', 'bundle:1-2', '--dry-run'])
     assert res.exit_code == 0, res.output
     # bundles 1-2 of size 7 -> fibers 1..14
@@ -178,7 +178,7 @@ def test_mosaic_bundle_range(runner):
 
 def test_mosaic_bundle_HR_uses_19_fibers(runner):
     res = runner.invoke(mosaic_cli, [
-        'simulate', '--band', 'HR-B1', '--source', 'flat',
+        'simulate', '--band', 'B1_HR', '--source', 'flat',
         '--fiber', 'bundle:1', '--dry-run'])
     assert res.exit_code == 0, res.output
     # bundle 1 of size 19 -> fibers 1..19
@@ -187,7 +187,7 @@ def test_mosaic_bundle_HR_uses_19_fibers(runner):
 
 def test_mosaic_bundle_out_of_range_rejected(runner):
     res = runner.invoke(mosaic_cli, [
-        'simulate', '--band', 'LR-blue', '--source', 'flat',
+        'simulate', '--band', 'B_LR', '--source', 'flat',
         '--fiber', 'bundle:999', '--dry-run'])
     assert res.exit_code != 0
     assert 'out of range' in res.output
@@ -215,7 +215,7 @@ def test_band_inferred_from_wavelengths(runner):
 
 
 def test_band_inference_ambiguous_fails(runner):
-    # ~1000nm matches both Y and LR-J — but each CLI is restricted to its
+    # ~1000nm matches both Y and J_LR — but each CLI is restricted to its
     # own instrument's bands, so ANDES picks Y unambiguously.
     res = runner.invoke(andes_cli, [
         'simulate', '--wl-min', '1000', '--wl-max', '1050',

@@ -24,9 +24,9 @@ uv run andes-sim simulate --source flat --band H --subslit slitA --wl-min 1600 -
 
 # MOSAIC
 uv run mosaic-sim list-bands
-uv run mosaic-sim simulate --band LR-blue --source flat --subslit all
-uv run mosaic-sim simulate --band LR-blue --source flat --fiber bundle:1
-uv run mosaic-sim simulate --band LR-J --source fp --fiber bundle:1-10 --flux 100
+uv run mosaic-sim simulate --band B_LR --source flat --subslit all
+uv run mosaic-sim simulate --band B_LR --source flat --fiber bundle:1
+uv run mosaic-sim simulate --band J_LR --source fp --fiber bundle:1-10 --flux 100
 ```
 
 ## Installation
@@ -91,18 +91,18 @@ uv run andes-sim simulate --band R --source lfc --fiber 21 --x-shift 0.5
 
 ```bash
 # VIS LR (980 fibers = 140 bundles x 7, 12288x12288 detector)
-uv run mosaic-sim simulate --band LR-blue --source flat --subslit all
-uv run mosaic-sim simulate --band LR-red --source flat --fiber bundle:1
+uv run mosaic-sim simulate --band B_LR --source flat --subslit all
+uv run mosaic-sim simulate --band R_LR --source flat --fiber bundle:1
 
 # NIR LR (630 fibers = 90 bundles x 7, 4096x4096 detector)
-uv run mosaic-sim simulate --band LR-J --source flat --fiber bundle:1-10
-uv run mosaic-sim simulate --band LR-H --source fp --fiber bundle:5 --flux 100
+uv run mosaic-sim simulate --band J_LR --source flat --fiber bundle:1-10
+uv run mosaic-sim simulate --band H_LR --source fp --fiber bundle:5 --flux 100
 
 # HR modes (VIS HR: 1140 fibers = 60 bundles x 19; NIR HR: 630 fibers)
-uv run mosaic-sim simulate --band HR-H --source flat --fiber bundle:1
+uv run mosaic-sim simulate --band H_HR --source flat --fiber bundle:1
 
 # Bundle selection: bundle:N or bundle:N-M
-uv run mosaic-sim simulate --band LR-blue --source fp --fiber bundle:50-60 --flux 100
+uv run mosaic-sim simulate --band B_LR --source fp --fiber bundle:50-60 --flux 100
 ```
 
 ### Post-Processing

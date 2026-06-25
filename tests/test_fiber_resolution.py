@@ -12,9 +12,9 @@ from andes_simulator.core.instruments import get_instrument_config
 BAND_CASES = [
     ('R', 66),       # ANDES UBVRIZ
     ('Y', 75),       # ANDES YJH
-    ('LR-blue', 980),  # MOSAIC VIS LR
-    ('HR-B1', 1140),   # MOSAIC VIS HR
-    ('HR-H', 630),     # MOSAIC NIR
+    ('B_LR', 980),  # MOSAIC VIS LR
+    ('B1_HR', 1140),   # MOSAIC VIS HR
+    ('H_HR', 630),     # MOSAIC NIR
 ]
 
 

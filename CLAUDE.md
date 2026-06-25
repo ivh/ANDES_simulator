@@ -7,7 +7,7 @@ that share the same PyEchelle-based simulation core:
 - `andes-sim` -- ANDES high-resolution echelle (bands: U, B, V, R, IZ, Y, J, H;
   plus `Y_iq15`, `J_iq15`, `H_iq15`: single-fiber "master_rotfix_iq15" model variants,
   use `--fiber 1`; H_iq15 has gaps in order coverage)
-- `mosaic-sim` -- MOSAIC multi-object VPH spectrograph (bands: LR-blue, LR-red, LR-J, LR-H, HR-B1, HR-R1, HR-B2, HR-H)
+- `mosaic-sim` -- MOSAIC multi-object VPH spectrograph (bands: B_LR, R_LR, J_LR, H_LR, B1_HR, R1_HR, B2_HR, H_HR)
 
 Instrument-specific configs live in `core/andes.py` and `core/mosaic.py`.
 The registry in `core/instruments.py` merges them so downstream code is instrument-agnostic.
@@ -45,18 +45,18 @@ uv run andes-sim simulate --band R --source lfc --fiber 21 --x-shift 0.5
 
 ```bash
 # Flat field
-uv run mosaic-sim simulate --band LR-blue --source flat --subslit all
-uv run mosaic-sim simulate --band LR-blue --source flat --fiber bundle:1
+uv run mosaic-sim simulate --band B_LR --source flat --subslit all
+uv run mosaic-sim simulate --band B_LR --source flat --fiber bundle:1
 
 # Fabry-Perot
-uv run mosaic-sim simulate --band LR-blue --source fp --fiber bundle:1 --flux 100
+uv run mosaic-sim simulate --band B_LR --source fp --fiber bundle:1 --flux 100
 
 # Bundle selection (7 fibers/bundle for LR and NIR, 19 fibers/bundle for VIS HR)
-uv run mosaic-sim simulate --band LR-red --source flat --fiber bundle:5
-uv run mosaic-sim simulate --band LR-J --source flat --fiber bundle:1-10
+uv run mosaic-sim simulate --band R_LR --source flat --fiber bundle:5
+uv run mosaic-sim simulate --band J_LR --source flat --fiber bundle:1-10
 
 # NIR HR
-uv run mosaic-sim simulate --band HR-H --source flat --fiber bundle:1
+uv run mosaic-sim simulate --band H_HR --source flat --fiber bundle:1
 ```
 
 ### Post-Processing Commands

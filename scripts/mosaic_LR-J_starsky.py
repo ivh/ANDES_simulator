@@ -3,7 +3,7 @@
 # dependencies = ["numpy", "astropy>=7.0", "skycalc_ipy"]
 # ///
 """
-LR-J band star+sky observation simulation for MOSAIC.
+J_LR band star+sky observation simulation for MOSAIC.
 
 Simulates a stellar observation on a single MOSAIC NIR fiber bundle in the
 middle of the detector:
@@ -12,7 +12,7 @@ middle of the detector:
   - All other bundles are dark.
 
 Sky transmission and emission are fetched from ESO SkyCalc and cached in
-SED/sky_transmission_YK.csv / SED/sky_emission_YK.csv (LR-J 950-1340 nm
+SED/sky_transmission_YK.csv / SED/sky_emission_YK.csv (J_LR 950-1340 nm
 falls inside the cached YK range, so the cache is reused if present).
 
 Star and sky frames are added into a single output. Both component
@@ -31,9 +31,9 @@ from astropy.io import fits
 
 SRC_DIR = Path(__file__).resolve().parent.parent
 SED_DIR = SRC_DIR / "SED"
-OUT_DIR = SRC_DIR.parent / "mosaic_LR-J_starsky"
+OUT_DIR = SRC_DIR.parent / "mosaic_J_LR_starsky"
 
-BAND = "LR-J"
+BAND = "J_LR"
 N_WORKERS = 2
 FIB_EFF = "0.75-0.95"
 
@@ -52,9 +52,9 @@ SKY_FLUX = 0.005
 
 
 def make_sky_files():
-    """Fetch LR-J sky transmission and emission from ESO SkyCalc.
+    """Fetch J_LR sky transmission and emission from ESO SkyCalc.
 
-    Reuses the YK cache if present (it spans 950-2400 nm which covers LR-J).
+    Reuses the YK cache if present (it spans 950-2400 nm which covers J_LR).
     Returns (transmission_path, emission_path).
     """
     trans_path = SED_DIR / "sky_transmission_YK.csv"
@@ -98,7 +98,7 @@ def make_transmitted_star(sky_trans_path):
     transmitted = star.copy()
     transmitted[:, 1] *= transmission
 
-    out = SED_DIR / "star_transmitted_LR-J.csv"
+    out = SED_DIR / "star_transmitted_J_LR.csv"
     with open(out, "w") as f:
         with open(STAR_SPECTRUM) as orig:
             for line in orig:

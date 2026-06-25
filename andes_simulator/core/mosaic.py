@@ -2,25 +2,27 @@
 
 INSTRUMENT_NAME = 'MOSAIC'
 
-MOSAIC_BANDS = ['LR-blue', 'LR-red', 'LR-J', 'LR-H',
-                'HR-B1', 'HR-R1', 'HR-B2', 'HR-R2', 'HR-H']
+# Band names follow the E2E `ESO INS MODE` convention: <config>_<resolution>,
+# e.g. B_LR (blue low-res), B1_HR (blue high-res setting 1), J_LR, H_HR.
+MOSAIC_BANDS = ['B_LR', 'R_LR', 'J_LR', 'H_LR',
+                'B1_HR', 'R1_HR', 'B2_HR', 'R2_HR', 'H_HR']
 
 SUBSLIT_CHOICES = ['all', 'even', 'odd']
 
 # Single VPH order for all bands
 BAND_ORDER_ESTIMATES = {
-    'LR-blue': 1, 'LR-red': 1, 'LR-J': 1, 'LR-H': 1,
-    'HR-B1': 1, 'HR-R1': 1, 'HR-B2': 1, 'HR-R2': 1, 'HR-H': 1,
+    'B_LR': 1, 'R_LR': 1, 'J_LR': 1, 'H_LR': 1,
+    'B1_HR': 1, 'R1_HR': 1, 'B2_HR': 1, 'R2_HR': 1, 'H_HR': 1,
 }
 
 DEFAULT_SCALING = {
-    'LR-blue': 1e3, 'LR-red': 1e3, 'LR-J': 1e3, 'LR-H': 1e3,
-    'HR-B1': 1e3, 'HR-R1': 1e3, 'HR-B2': 1e3, 'HR-R2': 1e3, 'HR-H': 1e3,
+    'B_LR': 1e3, 'R_LR': 1e3, 'J_LR': 1e3, 'H_LR': 1e3,
+    'B1_HR': 1e3, 'R1_HR': 1e3, 'B2_HR': 1e3, 'R2_HR': 1e3, 'H_HR': 1e3,
 }
 
 DEFAULT_FINESSE = {
-    'LR-blue': 23, 'LR-red': 23, 'LR-J': 23, 'LR-H': 23,
-    'HR-B1': 23, 'HR-R1': 23, 'HR-B2': 23, 'HR-R2': 23, 'HR-H': 23,
+    'B_LR': 23, 'R_LR': 23, 'J_LR': 23, 'H_LR': 23,
+    'B1_HR': 23, 'R1_HR': 23, 'B2_HR': 23, 'R2_HR': 23, 'H_HR': 23,
 }
 
 TELESCOPE = {
@@ -72,50 +74,50 @@ _NIR = {
 
 INSTRUMENTS = {
     # VIS LR
-    'LR-blue': {
+    'B_LR': {
         **_VIS_LR,
         'wavelength_range': (390, 625),
         'hdf_models': {'default': 'MOSAIC_VIS_LR_Blue'},
     },
-    'LR-red': {
+    'R_LR': {
         **_VIS_LR,
         'wavelength_range': (595, 952),
         'hdf_models': {'default': 'MOSAIC_VIS_LR_Red'},
     },
     # VIS HR
-    'HR-B1': {
+    'B1_HR': {
         **_VIS_HR,
         'wavelength_range': (505, 580),
         'hdf_models': {'default': 'MOSAIC_VIS_HR_B1'},
     },
-    'HR-R1': {
+    'R1_HR': {
         **_VIS_HR,
         'wavelength_range': (610, 680),
         'hdf_models': {'default': 'MOSAIC_VIS_HR_R1'},
     },
-    'HR-B2': {
+    'B2_HR': {
         **_VIS_HR,
         'wavelength_range': (393, 458),
         'hdf_models': {'default': 'MOSAIC_VIS_HR_B2'},
     },
-    'HR-R2': {
+    'R2_HR': {
         **_VIS_HR,
         'wavelength_range': (765, 890),
         'hdf_models': {'default': 'MOSAIC_VIS_HR_R2'},
     },
     # NIR LR
-    'LR-J': {
+    'J_LR': {
         **_NIR,
         'wavelength_range': (950, 1340),
         'hdf_models': {'default': 'MOSAIC_NIR_LR_J'},
     },
-    'LR-H': {
+    'H_LR': {
         **_NIR,
         'wavelength_range': (1430, 1800),
         'hdf_models': {'default': 'MOSAIC_NIR_LR_H'},
     },
     # NIR HR
-    'HR-H': {
+    'H_HR': {
         **_NIR,
         'wavelength_range': (1520, 1620),
         'hdf_models': {'default': 'MOSAIC_NIR_HR'},

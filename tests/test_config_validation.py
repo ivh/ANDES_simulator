@@ -33,8 +33,8 @@ def test_unknown_band_rejected():
 
 def test_all_known_bands_accepted():
     for band in ["U", "B", "V", "R", "IZ", "Y", "J", "H",
-                 "LR-blue", "LR-red", "LR-J", "LR-H",
-                 "HR-B1", "HR-R1", "HR-B2", "HR-R2", "HR-H"]:
+                 "B_LR", "R_LR", "J_LR", "H_LR",
+                 "B1_HR", "R1_HR", "B2_HR", "R2_HR", "H_HR"]:
         _make(band=band)  # should not raise
 
 

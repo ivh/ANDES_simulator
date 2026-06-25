@@ -33,7 +33,7 @@ def test_all_mode_Y_band_returns_1_to_75():
 
 
 def test_all_mode_LR_blue_returns_1_to_980():
-    cfg = _make("LR-blue", "all")
+    cfg = _make("B_LR", "all")
     fibers = cfg.get_fiber_list()
     assert fibers[0] == 1
     assert fibers[-1] == 980
