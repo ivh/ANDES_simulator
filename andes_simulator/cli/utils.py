@@ -80,7 +80,7 @@ def resolve_source_scaling(source_type: str, band: str, flux: float,
 
     base = user_scaling if user_scaling is not None else DEFAULT_SCALING.get(band, 1e5)
     effective = flux * base
-    if source_type == 'lfc':
+    if source_type in ('lfc', 'hcl'):
         effective /= 20
     elif source_type == 'fabry_perot':
         effective /= 100
@@ -235,6 +235,8 @@ def format_dry_run_output(config, extra_lines: Optional[list] = None,
             click.echo(f"  FP gap: auto-computed")
     elif config.source.type == "lfc":
         click.echo(f"  LFC flux per line: {config.source.scaling_factor:.2e} ph/s")
+    elif config.source.type == "hcl":
+        click.echo(f"  HCL brightest-line flux: {config.source.scaling_factor:.2e} ph/s")
     elif config.source.type == "csv":
         click.echo(f"  Spectrum: {config.source.filepath}")
         click.echo(f"  Scaling: {config.source.scaling_factor}")

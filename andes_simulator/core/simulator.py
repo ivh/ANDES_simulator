@@ -210,10 +210,10 @@ class AndesSimulator:
     def _save_line_catalog(self, output_dir: Path) -> None:
         """Save a line catalog (.txt) in the output directory for FP/LFC sources."""
         sim_type = self.config.simulation_type
-        if sim_type not in ('fabry_perot', 'lfc'):
+        if sim_type not in ('fabry_perot', 'lfc', 'hcl'):
             return
 
-        tag = 'FP' if sim_type == 'fabry_perot' else 'LFC'
+        tag = {'fabry_perot': 'FP', 'lfc': 'LFC', 'hcl': 'HCL'}[sim_type]
         catalog_path = output_dir / f"{self.config.band}_{tag}_lines.txt"
 
         if sim_type == 'fabry_perot':
@@ -232,7 +232,7 @@ class AndesSimulator:
                 f"unit = nm",
             ]
             wavelengths = peaks
-        else:
+        elif sim_type == 'lfc':
             from ..sources.lfc import LFCSource
             lfc = LFCSource(
                 band=self.config.band,
@@ -246,6 +246,26 @@ class AndesSimulator:
                 f"lines_per_order = {lfc.lines_per_order}",
                 f"velocity_spacing_km_s = {lfc._calculate_velocity_spacing() / 1000:.3f}",
                 f"flux_per_line = {lfc.flux_per_line:.2e}",
+                f"n_lines = {len(wls)}",
+                f"unit = nm",
+            ]
+            wavelengths = wls
+        else:
+            from ..sources.hcl import HCLSource, HCLLineListUnavailable
+            hcl = HCLSource(
+                band=self.config.band,
+                flux_scale=self.config.source.scaling_factor,
+                project_root=self.project_root,
+            )
+            try:
+                wls, _ = hcl.get_lines(
+                    wl_min=self.config.wl_min, wl_max=self.config.wl_max)
+            except (HCLLineListUnavailable, ValueError):
+                return
+            header_lines = [
+                f"band = {hcl.band}",
+                f"lamp = ThAr (NIST)",
+                f"flux_scale = {hcl.flux_scale:.2e}",
                 f"n_lines = {len(wls)}",
                 f"unit = nm",
             ]

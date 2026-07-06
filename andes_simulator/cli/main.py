@@ -147,7 +147,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
     @click.option('--band', type=click.Choice(bands),
                   help='Spectral band (inferred from --hdf or wavelengths if not given)')
     @click.option('--source', 'source_spec', required=True, type=str,
-                  help='Source type: flat, fp, lfc, or path to CSV file')
+                  help='Source type: flat, fp, lfc, hcl, or path to CSV file')
     @subslit_options
     @flux_options
     @common_options
@@ -185,6 +185,10 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
             source_type = 'lfc'
             simulation_type = 'lfc'
             spectrum_path = None
+        elif source_spec_lower == 'hcl':
+            source_type = 'hcl'
+            simulation_type = 'hcl'
+            spectrum_path = None
         elif source_spec.endswith('.csv') or Path(source_spec).exists():
             source_type = 'csv'
             simulation_type = 'spectrum'
@@ -193,7 +197,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
                 raise click.BadParameter(f"Spectrum file not found: {source_spec}")
         else:
             raise click.BadParameter(
-                f"Unknown source '{source_spec}'. Use: flat, fp, lfc, or path to CSV")
+                f"Unknown source '{source_spec}'. Use: flat, fp, lfc, hcl, or path to CSV")
 
         band, hdf_path = resolve_band_and_hdf(band, hdf, ctx.obj['project_root'], wl_min, wl_max)
         fiber_spec = resolve_negative_fiber(fiber_spec, band)

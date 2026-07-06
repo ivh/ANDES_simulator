@@ -80,6 +80,11 @@ class SourceFactory:
                 raise ValueError("Band required for LFC sources")
             return self._create_lfc_source(config, band, wl_min, wl_max)
 
+        elif config.type == "hcl":
+            if band is None:
+                raise ValueError("Band required for HCL sources")
+            return self._create_hcl_source(config, band, wl_min, wl_max)
+
         else:
             raise ValueError(f"Unknown source type: {config.type}")
     
@@ -329,6 +334,23 @@ class SourceFactory:
             project_root=self.project_root
         )
         return lfc._create_lfc_source(wl_min=wl_min, wl_max=wl_max)
+
+    def _create_hcl_source(
+        self,
+        config: SourceConfig,
+        band: str,
+        wl_min: Optional[float] = None,
+        wl_max: Optional[float] = None
+    ):
+        """Create an HCL (ThAr hollow-cathode lamp) line source."""
+        from ..sources.hcl import HCLSource
+
+        hcl = HCLSource(
+            band=band,
+            flux_scale=config.scaling_factor,
+            project_root=self.project_root,
+        )
+        return hcl._create_hcl_source(wl_min=wl_min, wl_max=wl_max)
 
     def _wrap_with_wavelength_filter(self, source, wl_min, wl_max):
         if wl_min is None and wl_max is None:
