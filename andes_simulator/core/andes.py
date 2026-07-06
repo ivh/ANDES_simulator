@@ -40,6 +40,47 @@ TELESCOPE = {
     'central_obstruction': 4.09,
 }
 
+# DRL spec v1.2 Ch. 4.1: raw files are one MEF per spectrograph, one image
+# extension per detector arm; SEQ.ARM is spectrograph-level.
+SPECTROGRAPHS = {
+    'UBV': {'bands': ['U', 'B', 'V'], 'detector_type': 'CCD', 'has_bias': True},
+    'RIZ': {'bands': ['R', 'IZ'], 'detector_type': 'CCD', 'has_bias': True},
+    'YJH': {'bands': ['Y', 'J', 'H'], 'detector_type': 'HAWAII4RG', 'has_bias': False},
+}
+
+# Placeholder values until real detector specs exist. RON in e-, gain in
+# e-/ADU, dark in e-/s/pixel; hot-pixel dark rates drawn log-uniform from
+# the given range.
+DETECTOR_MODELS = {
+    'CCD': {
+        'readout_modes': {
+            'fast': {'ron_e': 7.0, 'gain_e_adu': 2.0},
+            'slow': {'ron_e': 3.0, 'gain_e_adu': 1.1},
+        },
+        'default_readout': 'fast',
+        'bias_adu': 1000.0,
+        'dark_e_s': 3e-4,
+        'prnu_rms': 0.01,
+        'hot_pixel_frac': 2e-5,
+        'hot_dark_e_s': (0.5, 50.0),
+        'dead_pixel_frac': 1e-5,
+        'n_bad_columns': 2,
+    },
+    'HAWAII4RG': {
+        'readout_modes': {
+            'cds': {'ron_e': 10.0, 'gain_e_adu': 1.3},
+        },
+        'default_readout': 'cds',
+        'bias_adu': 300.0,
+        'dark_e_s': 0.02,
+        'prnu_rms': 0.02,
+        'hot_pixel_frac': 1e-4,
+        'hot_dark_e_s': (1.0, 100.0),
+        'dead_pixel_frac': 5e-5,
+        'n_bad_columns': 0,
+    },
+}
+
 INSTRUMENTS = {
     'Y': {
         'instrument_name': 'ANDES',

@@ -27,6 +27,9 @@ uv run andes-sim simulate --band R --source fp --fiber 21 --flux 100
 # LFC
 uv run andes-sim simulate --band R --source lfc --subslit cal_sl
 
+# HCL (ThAr hollow-cathode lamp; NIST line list in SED/linelists/)
+uv run andes-sim simulate --band R --source hcl --subslit slitA
+
 # YJH IFU
 uv run andes-sim simulate --band Y --source flat --subslit ifu
 
@@ -59,6 +62,31 @@ uv run mosaic-sim simulate --band J_LR --source flat --fiber bundle:1-10
 uv run mosaic-sim simulate --band H_HR --source flat --fiber bundle:1
 ```
 
+### EDPS Raw-Frame Commands (ANDES only)
+
+Design record: `src/dpr_plan.md`. One MEF per spectrograph arm (UBV/RIZ/YJH),
+one uint16 extension per detector band, ESO classification headers
+(DRL spec v1.2 Ch. 4.1). Code in `andes_simulator/raw/`.
+
+```bash
+# single raw frame from a DPR.TYPE string (grammar: KIND,A,C,B)
+uv run andes-sim make-raw --arm RIZ --dpr "WAVE,HCL,FP,FP" --exptime 120 --nexp 2 -o rawdata/
+uv run andes-sim make-raw --arm YJH --dpr BIAS --exptime 0 --nexp 10 -o rawdata/
+uv run andes-sim make-raw --arm YJH --dpr "FLAT,LAMP" --mode IFU-AO --ifu-scale 16 -o rawdata/
+uv run andes-sim make-raw --arm RIZ --dpr "SLIT,FP,FP,FP" --ins-mask M1 -o rawdata/
+
+# only simulate some detectors of the arm (other extensions: detector noise, flagged)
+uv run andes-sim make-raw --arm YJH --bands Y --dpr "WAVE,FP,FP,OFF" -o rawdata/
+
+# synthetic night from the canonical plan (versioned in the edps repo)
+uv run andes-sim night ~/ANDES/edps/calibration_plan.yaml --sets detector,daily --arms RIZ -o night1/
+uv run andes-sim night ~/ANDES/edps/calibration_plan.yaml --include night,science --dry-run
+```
+
+Useful flags: `--jobs N` (parallel slot simulations), `--seed` (reproducible
+noise), `--boost` (expectation-cache flux boost, default 10), `--cache-dir`
+(default `E2E/simcache/`), `--dry-run`.
+
 ### Post-Processing Commands
 
 ```bash
@@ -86,6 +114,29 @@ uv run andes-sim psf-process --band R --input-pattern "R_FP_fiber{fib:02d}_*.fit
 - `--dry-run`: Preview without executing
 
 ## Technical Notes
+
+### Raw-frame generation (andes_simulator/raw/)
+
+- **DPR grammar** (`raw/dpr.py`): `<KIND>,<A>,<C>,<B>` (SL), `<KIND>,<slit>[,<calfib>]`
+  (IFU), no KIND for science. BIAS/DARK/LED `FLAT,LAMP` are detector-only.
+  Source tokens map to simulator sources (LAMP->flat, HCL->hcl, SKY/OBJECT/...->
+  CSVs from SED/ chosen by band coverage). Masks M1-M3 = every third fiber.
+- **Cache** (`raw/cache.py`, `E2E/simcache/`): stores *boosted expectation*
+  images (simulated at boost x flux, divided by boost) so each exposure draws
+  fresh Poisson noise. Residual correlated noise is 1/boost of shot variance —
+  fine for recipe testing, raise --boost for noise studies. Fiber efficiencies
+  are seeded per band (static instrument property, consistent across frames).
+- **Detector model** (`raw/detector.py`): PRNU, dark+hot pixels, dead pixels/bad
+  columns (all static, seeded per band), Poisson, charge binning, RON, gain,
+  bias, uint16 saturation. Parameter values in `core/andes.py` DETECTOR_MODELS
+  are placeholders until real detector specs exist. No overscan regions yet
+  (geometry undefined in the ADs).
+- **Flux levels**: no realistic throughput model — slot images are normalized
+  to target peak e- per (KIND, token) in `raw/dpr.py` PEAK_TARGETS_E; header
+  EXPTIME is scheduling metadata, not a photon integral.
+- **Known gap**: AD2-style wave patterns (e.g. `WAVE,FP,FP,OFF`) generate fine
+  but are unclassified by the current edps workflow (reconciliation item 1 in
+  calibration_plan.yaml).
 
 - **PyEchelle**: Uses v0.4.0; must use `max_cpu=1` due to multi-CPU bug
 - **Numba cache**: `andes_simulator/__init__.py` provisions a per-process tmpdir as `NUMBA_CACHE_DIR` (with atexit cleanup) to avoid "underlying object has vanished" errors from cache corruption. Single-process runs need no setup. An externally-set `NUMBA_CACHE_DIR` is respected, so parallel wrapper scripts (e.g. `scripts/lfc_allfib_allbands.sh`, `scripts/ifu_star.py`, `scripts/R_starsky.py`) that give each worker subprocess its own cache keep working.
