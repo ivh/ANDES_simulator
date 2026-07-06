@@ -6,7 +6,8 @@ ANDES_BANDS = ['U', 'B', 'V', 'R', 'IZ', 'Y', 'J', 'H',
                'Y_iq15', 'J_iq15', 'H_iq15']
 
 SUBSLIT_CHOICES = ['all', 'even', 'odd', 'slitA', 'slitB', 'cal_sl', 'cal_ifu',
-                   'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4']
+                   'ifu', 'ring0', 'ring1', 'ring2', 'ring3', 'ring4',
+                   'mask1', 'mask2', 'mask3']
 
 BAND_ORDER_ESTIMATES = {
     'U': 130,

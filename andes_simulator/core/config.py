@@ -116,7 +116,8 @@ class SimulationConfig:
         # Validate fiber mode
         valid_fiber_modes = ["all", "single", "even", "odd", "slitA", "slitB",
                             "cal_sl", "cal_ifu",
-                            "ifu", "ring0", "ring1", "ring2", "ring3", "ring4", "custom"]
+                            "ifu", "ring0", "ring1", "ring2", "ring3", "ring4",
+                            "mask1", "mask2", "mask3", "custom"]
         if self.fibers.mode not in valid_fiber_modes:
             raise ValueError(f"Invalid fiber mode '{self.fibers.mode}'. Available: {valid_fiber_modes}")
         
@@ -212,6 +213,11 @@ class SimulationConfig:
                 if self.fibers.mode not in ifu_slits:
                     raise ValueError(f"Mode '{self.fibers.mode}' not available for {self.band}-band")
                 fibers = list(ifu_slits[self.fibers.mode])
+
+        elif self.fibers.mode in ("mask1", "mask2", "mask3"):
+            # fibre masking system (AD2 C-slit CPs): every third fibre
+            offset = int(self.fibers.mode[-1]) - 1
+            fibers = [f for f in range(1, n_fibers + 1) if (f - 1) % 3 == offset]
 
         elif self.fibers.mode == "custom":
             if isinstance(self.fibers.fibers, list):
