@@ -1,11 +1,13 @@
 """DPR.TYPE grammar parsing for raw-frame generation.
 
-Grammar (see ~/ANDES/edps/andes/andes_classification.py and the conventions
-section of calibration_plan.yaml): '<KIND>,<A>,<C>,<B>' for SL echelle
-calibrations (A/B = pseudo-slits, C = calibration fibre), '<KIND>,<slit>
-[,<calfib>]' for IFU, plain '<A>,<C>,<B>' (no KIND) for science frames.
-BIAS, DARK and the LED flat 'FLAT,LAMP' (DPR.TECH=IMAGE) are detector-only
-frames that never touch pyechelle.
+Grammar per Templates Manual E-AND-SW-MAN-06-00-001 v2.0 (see
+~/ANDES/edps/calibration_plan.yaml, reconciliation item 10):
+'<KIND>,<A>,<B>' for SL echelle calibrations, '<KIND>,<slit>' for IFU,
+no KIND for science ('OBJECT,SKY', 'OBJECT,WAVE' in TC mode, plain
+'OBJECT'/'SKY' for IFU). The calibration fibre C is NOT part of DPR.TYPE;
+its source is passed separately (calfib) and stamped into the dedicated
+ins.calfib keyword. BIAS, DARK and the LED flat 'FLAT,LAMP'
+(DPR.TECH=IMAGE) are detector-only frames that never touch pyechelle.
 """
 
 from dataclasses import dataclass, field
@@ -14,10 +16,12 @@ from typing import Dict, List, Optional, Tuple
 
 from ..core.instruments import get_instrument_config, get_band_wavelength_range
 
-KINDS = {'BIAS', 'DARK', 'FLAT', 'ORDERDEF', 'WAVE', 'SLIT', 'LSF', 'EFF', 'STD'}
+KINDS = {'BIAS', 'DARK', 'FLAT', 'ORDERDEF', 'WAVE', 'SLITMASK', 'STD'}
 
 SOURCE_TOKENS = {'LAMP', 'FP', 'LFC', 'HCL', 'SKY', 'OBJECT', 'FLUX',
-                 'TELLURIC', 'RV', 'OFF', 'DARK'}
+                 'TELLURIC', 'RV', 'WAVE', 'OFF', 'DARK'}
+
+CALFIB_TOKENS = {'FP', 'HCL', 'LFC', 'LAMP', 'OFF'}
 
 DARK_TOKENS = {'OFF', 'DARK'}
 
@@ -33,9 +37,10 @@ PEAK_TARGETS_E = {
     'FLUX': 30000.0,
     'TELLURIC': 30000.0,
     'RV': 25000.0,
+    'WAVE': 30000.0,
     'SKY': 1500.0,
 }
-PEAK_TARGET_EFF_SKY_E = 30000.0  # twilight sky flats are bright
+PEAK_TARGET_SKYFLAT_E = 30000.0  # twilight sky flats are bright
 
 # CSV spectra per token; the first file covering the band is used.
 CSV_CANDIDATES = {
@@ -53,9 +58,9 @@ _csv_range_cache: Dict[Path, Tuple[float, float]] = {}
 @dataclass
 class Slot:
     """One illuminated slot of a raw frame (dark slots are omitted)."""
-    name: str          # A, C, B, IFU, CALFIB
-    subslit: str       # slitA, cal_sl, slitB, ifu, cal_ifu
-    token: str         # source token from the DPR string
+    name: str          # A, B, C, IFU, CALFIB
+    subslit: str       # slitA, slitB, cal_sl, ifu, cal_ifu
+    token: str         # source token from the DPR string (or calfib value)
     fibers: List[int]  # resolved 1-based fiber list (after mask intersection)
 
 
@@ -68,12 +73,12 @@ class DprSpec:
     mode: Optional[str]        # SL-UNI, IFU-AO or None (detector-only)
     detector_only: bool
     led: bool                  # detector-only LED flat (uniform illumination)
+    calfib: Optional[str] = None   # calibration fibre source (ins.calfib)
     slots: List[Slot] = field(default_factory=list)
     ins_mask: Optional[str] = None
 
 
-SL_SLOTS = [('A', 'slitA'), ('C', 'cal_sl'), ('B', 'slitB')]
-IFU_SLOTS = [('IFU', 'ifu'), ('CALFIB', 'cal_ifu')]
+SL_SLOTS = [('A', 'slitA'), ('B', 'slitB')]
 
 
 def subslit_fibers(band: str, subslit: str) -> List[int]:
@@ -109,8 +114,9 @@ def mask_fibers(band: str, mask: str) -> List[int]:
 
 def parse_dpr(dpr_type: str, band: Optional[str] = None,
               mode: Optional[str] = None, ins_mask: Optional[str] = None,
+              calfib: Optional[str] = None,
               catg: Optional[str] = None, tech: Optional[str] = None) -> DprSpec:
-    """Parse a DPR.TYPE string into a frame specification.
+    """Parse a DPR.TYPE string (+ calfib keyword) into a frame specification.
 
     band is required for frames with slots (fiber lists are band-specific);
     detector-only frames (BIAS, DARK, LED flat) parse without it.
@@ -121,6 +127,11 @@ def parse_dpr(dpr_type: str, band: Optional[str] = None,
 
     kind = tokens[0] if tokens[0] in KINDS else None
     slot_tokens = tokens[1:] if kind else tokens
+
+    calfib = calfib.upper() if calfib else None
+    if calfib is not None and calfib not in CALFIB_TOKENS:
+        raise ValueError(f"Unknown calfib source '{calfib}' "
+                         f"(expected one of {sorted(CALFIB_TOKENS)})")
 
     if kind in ('BIAS', 'DARK'):
         if slot_tokens:
@@ -138,49 +149,57 @@ def parse_dpr(dpr_type: str, band: Optional[str] = None,
     if unknown:
         raise ValueError(f"Unknown source token(s) {unknown} in '{dpr_type}'")
 
-    if len(slot_tokens) == 3:
+    if len(slot_tokens) == 2:
         slot_defs = SL_SLOTS
+        calfib_subslit = 'cal_sl'
         mode = mode or 'SL-UNI'
         default_tech = 'ECHELLE,FIBER'
-    elif len(slot_tokens) in (1, 2) and mode == 'IFU-AO':
-        slot_defs = IFU_SLOTS[:len(slot_tokens)]
+    elif len(slot_tokens) == 1 and mode == 'IFU-AO':
+        slot_defs = [('IFU', 'ifu')]
+        calfib_subslit = 'cal_ifu'
         default_tech = 'ECHELLE,IFU'
     else:
         raise ValueError(
             f"Cannot interpret DPR.TYPE '{dpr_type}' with mode {mode}: "
-            f"expected 3 slot tokens (SL) or 1-2 with --mode IFU-AO")
+            f"expected 2 slot tokens (SL) or 1 with --mode IFU-AO")
 
     if band is None:
         raise ValueError(f"Band required to resolve fibers for '{dpr_type}'")
 
-    if kind is None:
-        default_catg = 'SCIENCE'
-    else:
-        default_catg = 'CALIB'
+    default_catg = 'SCIENCE' if kind is None else 'CALIB'
 
     mask_set = set(mask_fibers(band, ins_mask)) if ins_mask else None
+
+    def make_slot(name, subslit, token):
+        fibers = subslit_fibers(band, subslit)
+        if mask_set is not None:
+            fibers = [f for f in fibers if f in mask_set]
+        if fibers:
+            return Slot(name=name, subslit=subslit, token=token, fibers=fibers)
+        return None
 
     slots = []
     for (name, subslit), token in zip(slot_defs, slot_tokens):
         if token in DARK_TOKENS:
             continue
-        fibers = subslit_fibers(band, subslit)
-        if mask_set is not None:
-            fibers = [f for f in fibers if f in mask_set]
-        if fibers:
-            slots.append(Slot(name=name, subslit=subslit, token=token,
-                              fibers=fibers))
+        slot = make_slot(name, subslit, token)
+        if slot:
+            slots.append(slot)
+    if calfib is not None and calfib not in DARK_TOKENS:
+        slot = make_slot('C', calfib_subslit, calfib)
+        if slot:
+            slots.append(slot)
 
     return DprSpec(dpr_type=dpr_type, kind=kind, catg=catg or default_catg,
-                   tech=tech or default_tech, mode=mode,
+                   tech=tech or default_tech, mode=mode, calfib=calfib,
                    detector_only=False, led=False, slots=slots,
                    ins_mask=ins_mask)
 
 
 def peak_target_e(kind: Optional[str], token: str) -> float:
     """Target peak signal in e- for a slot image."""
-    if kind == 'EFF' and token == 'SKY':
-        return PEAK_TARGET_EFF_SKY_E
+    if kind == 'FLAT' and token == 'SKY':
+        return PEAK_TARGET_SKYFLAT_E  # twilight sky flat
     return PEAK_TARGETS_E[token]
 
 
@@ -213,11 +232,13 @@ def source_spec_for_token(token: str, band: str,
 
     CSV tokens pick the first candidate file covering enough of the band;
     SKY falls back to a faint constant continuum where no sky spectrum
-    exists (the level is set by peak-target normalization anyway).
+    exists (the level is set by peak-target normalization anyway). WAVE
+    (TC-mode simultaneous reference) defaults to the FP etalon — the lamp
+    is a template parameter per the Templates Manual.
     """
     if token == 'LAMP':
         return {'type': 'constant'}
-    if token == 'FP':
+    if token in ('FP', 'WAVE'):
         return {'type': 'fabry_perot'}
     if token == 'LFC':
         return {'type': 'lfc'}

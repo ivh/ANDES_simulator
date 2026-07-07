@@ -74,6 +74,31 @@ def test_bands_subset_flags_extensions(builder):
         assert not hdul["J"].header["HIERARCH ESO SIM SIMULATED"]
 
 
+def test_headers_only_spectral_frame(tmp_path):
+    cache = SimCache(tmp_path / "cache", PROJECT_ROOT)
+    b = RawFrameBuilder(PROJECT_ROOT, cache, tmp_path / "out", seed=4,
+                        headers_only=True)
+    paths = b.build(arm="RIZ", dpr_type="WAVE,HCL,FP", calfib="OFF",
+                    exptime=120.0, readout="fast")
+    with fits.open(paths[0]) as hdul:
+        hdr = hdul[0].header
+        assert hdr["HIERARCH ESO DPR TYPE"] == "WAVE,HCL,FP"
+        assert hdr["HIERARCH ESO DPR TECH"] == "ECHELLE,FIBER"
+        assert hdr["HIERARCH ESO INS CALFIB"] == "OFF"
+        assert hdr["HIERARCH ESO DET READOUT"] == "fast"
+        assert hdul["R"].data.shape == (2, 2)
+        assert not hdul["R"].header["HIERARCH ESO SIM SIMULATED"]
+    # no pyechelle run happened: cache stayed empty
+    assert not list((tmp_path / "cache").glob("*.fits"))
+
+
+def test_calfib_keyword_written(builder):
+    paths = builder.build(arm="YJH", dpr_type="FLAT,LAMP", exptime=5.0)
+    with fits.open(paths[0]) as hdul:
+        # detector-only LED flat carries no calfib keyword
+        assert "HIERARCH ESO INS CALFIB" not in hdul[0].header
+
+
 MINI_PLAN = {
     "setups": {
         "arms": {
@@ -92,8 +117,10 @@ MINI_PLAN = {
         {"cp": "C-wl", "template": "tpl_wave", "set": "daily",
          "applies_to": {"arms": ["RIZ", "YJH"], "modes": ["SL-UNI"]},
          "dpr": {"catg": "CALIB", "tech": "ECHELLE,FIBER"},
-         "exposures": [{"type": "WAVE,FP,FP,OFF", "n": 2, "exptime_s": 60},
-                       {"type": "WAVE,OFF,FP,FP", "n": 2, "exptime_s": 60}]},
+         "exposures": [{"type": "WAVE,FP,OFF", "n": 2, "exptime_s": 60,
+                        "keywords": {"ins.calfib": "FP"}},
+                       {"type": "WAVE,OFF,FP", "n": 2, "exptime_s": 60,
+                        "keywords": {"ins.calfib": "FP"}}]},
         {"cp": "ref", "reference": ["C-B"], "applies_to": {"arms": ["RIZ"]}},
     ],
 }
@@ -109,6 +136,7 @@ def test_plan_night_filters_and_grouping():
     planned = plan_night(MINI_PLAN, arms=["RIZ", "YJH"])
     wave = [p for p in planned if p.dpr_type.startswith("WAVE")]
     assert len(wave) == 4  # 2 exposure specs x 2 arms
+    assert all(p.calfib == "FP" for p in wave)
     # wave exposures of one arm share the tpl.start group
     riz_groups = {p.group for p in wave if p.arm == "RIZ"}
     assert len(riz_groups) == 1

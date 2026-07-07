@@ -5,7 +5,7 @@ would freeze one shot-noise pattern into every frame built from them.
 Instead the cache stores *boosted expectation* images: each unique
 (band, model, source, fibers) slot is simulated once at boost x nominal
 flux and divided by boost; exposures then draw fresh Poisson noise from
-the scaled expectation (see dpr_plan.md). Residual correlated noise is
+the scaled expectation (see dpr_summary.md). Residual correlated noise is
 1/boost of the shot variance.
 
 Simulations seed numpy's global RNG from the band name before running so

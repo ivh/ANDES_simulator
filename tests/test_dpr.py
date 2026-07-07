@@ -1,4 +1,8 @@
-"""Tests for the DPR.TYPE grammar parser (raw/dpr.py)."""
+"""Tests for the DPR.TYPE grammar parser (raw/dpr.py).
+
+Grammar: Templates Manual v2.0 — two slots (A, B), calibration fibre C
+via the calfib parameter / ins.calfib keyword.
+"""
 
 from pathlib import Path
 
@@ -12,22 +16,29 @@ from andes_simulator.raw.dpr import (
 PROJECT_ROOT = Path(__file__).parent.parent
 
 
-def test_sl_wave_frame():
-    spec = parse_dpr("WAVE,HCL,FP,FP", band="R")
+def test_sl_wave_frame_with_calfib():
+    spec = parse_dpr("WAVE,HCL,FP", band="R", calfib="FP")
     assert spec.kind == "WAVE"
     assert spec.catg == "CALIB"
     assert spec.tech == "ECHELLE,FIBER"
     assert spec.mode == "SL-UNI"
+    assert spec.calfib == "FP"
     assert not spec.detector_only
-    assert [s.name for s in spec.slots] == ["A", "C", "B"]
+    assert [s.name for s in spec.slots] == ["A", "B", "C"]
     assert [s.token for s in spec.slots] == ["HCL", "FP", "FP"]
     assert spec.slots[0].fibers == list(range(1, 32))
-    assert spec.slots[1].fibers == [33, 34]
-    assert spec.slots[2].fibers == list(range(36, 67))
+    assert spec.slots[1].fibers == list(range(36, 67))
+    assert spec.slots[2].fibers == [33, 34]
+
+
+def test_calfib_off_or_absent_gives_no_c_slot():
+    for calfib in (None, "OFF"):
+        spec = parse_dpr("WAVE,FP,FP", band="R", calfib=calfib)
+        assert [s.name for s in spec.slots] == ["A", "B"]
 
 
 def test_dark_slots_omitted():
-    spec = parse_dpr("WAVE,FP,FP,OFF", band="R")
+    spec = parse_dpr("WAVE,FP,OFF", band="R", calfib="FP")
     assert [s.name for s in spec.slots] == ["A", "C"]
 
 
@@ -57,28 +68,35 @@ def test_ifu_flat_not_led():
     assert spec.slots[0].subslit == "ifu"
 
 
-def test_ifu_wave_two_slots():
-    spec = parse_dpr("WAVE,HCL,FP", band="Y", mode="IFU-AO")
+def test_ifu_wave_with_calfib():
+    spec = parse_dpr("WAVE,HCL", band="Y", mode="IFU-AO", calfib="FP")
     assert [s.subslit for s in spec.slots] == ["ifu", "cal_ifu"]
     assert [s.token for s in spec.slots] == ["HCL", "FP"]
 
 
 def test_science_frame_no_kind():
-    spec = parse_dpr("OBJECT,FP,SKY", band="R")
+    spec = parse_dpr("OBJECT,SKY", band="R", calfib="FP")
     assert spec.kind is None
     assert spec.catg == "SCIENCE"
-    assert [s.token for s in spec.slots] == ["OBJECT", "FP", "SKY"]
+    assert [s.token for s in spec.slots] == ["OBJECT", "SKY", "FP"]
+
+
+def test_tc_science_wave_token():
+    spec = parse_dpr("OBJECT,WAVE", band="R")
+    assert spec.catg == "SCIENCE"
+    assert [s.token for s in spec.slots] == ["OBJECT", "WAVE"]
+    assert source_spec_for_token("WAVE", "R", PROJECT_ROOT) == {"type": "fabry_perot"}
 
 
 def test_std_is_calib():
-    spec = parse_dpr("STD,FLUX,OFF,SKY", band="R")
+    spec = parse_dpr("STD,FLUX,SKY", band="R")
     assert spec.kind == "STD"
     assert spec.catg == "CALIB"
     assert [s.name for s in spec.slots] == ["A", "B"]
 
 
-def test_mask_intersection():
-    spec = parse_dpr("SLIT,FP,FP,FP", band="R", ins_mask="M1")
+def test_slitmask_with_mask_intersection():
+    spec = parse_dpr("SLITMASK,FP,OFF", band="R", ins_mask="M1", calfib="FP")
     all_masked = set(mask_fibers("R", "M1"))
     for slot in spec.slots:
         assert slot.fibers
@@ -95,14 +113,24 @@ def test_mask_patterns_disjoint_and_complete():
     assert m1 | m2 | m3 == set(range(1, 67))
 
 
-def test_two_tokens_without_ifu_mode_rejected():
+def test_old_three_slot_grammar_rejected():
     with pytest.raises(ValueError):
-        parse_dpr("WAVE,HCL,FP", band="R")
+        parse_dpr("WAVE,HCL,FP,FP", band="R")
+
+
+def test_single_token_without_ifu_mode_rejected():
+    with pytest.raises(ValueError):
+        parse_dpr("WAVE,HCL", band="R")
 
 
 def test_unknown_token_rejected():
     with pytest.raises(ValueError):
-        parse_dpr("WAVE,XYZ,FP,FP", band="R")
+        parse_dpr("WAVE,XYZ,FP", band="R")
+
+
+def test_unknown_calfib_rejected():
+    with pytest.raises(ValueError):
+        parse_dpr("WAVE,FP,FP", band="R", calfib="XYZ")
 
 
 def test_source_token_mapping():
@@ -124,7 +152,8 @@ def test_source_token_mapping():
 
 
 def test_peak_targets():
-    assert peak_target_e("EFF", "SKY") > peak_target_e("OBJECT", "SKY")
+    # twilight sky flat is bright, science sky slot faint
+    assert peak_target_e("FLAT", "SKY") > peak_target_e(None, "SKY")
     assert peak_target_e("WAVE", "FP") == 30000.0
 
 

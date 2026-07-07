@@ -39,6 +39,7 @@ class PlannedExposures:
     tpl_id: Optional[str] = None
     group: Optional[str] = None      # frames with equal group share tpl.start
     ins_mask: Optional[str] = None
+    calfib: Optional[str] = None     # calibration fibre source (ins.calfib)
     ifu_scale: Optional[int] = None
     binx: int = 1
     biny: int = 1
@@ -123,6 +124,7 @@ def plan_night(plan: Dict,
                         tech=exp.get('tech') or dpr.get('tech'),
                         tpl_id=tpl_id, group=f"{arm}:{tpl_id}:{mode}",
                         ins_mask=kw.get('ins.mask'),
+                        calfib=kw.get('ins.calfib'),
                         ifu_scale=ifu_scale if per_scale else None,
                         **vis_kwargs(arm)))
 
@@ -139,6 +141,7 @@ def plan_night(plan: Dict,
                     if mode == 'IFU-AO' and arm != 'YJH':
                         continue
                     n = _n_for(exp)
+                    kw = exp.get('keywords', {})
                     for exptime, count in _runs(_exptimes_for(exp, n)):
                         planned.append(PlannedExposures(
                             arm=arm, dpr_type=exp['type'], n=count,
@@ -146,6 +149,7 @@ def plan_night(plan: Dict,
                             catg=dpr.get('catg'), tech=tech,
                             tpl_id=tpl_id,
                             group=f"{arm}:{tpl_id or entry.get('name')}:{mode}",
+                            calfib=kw.get('ins.calfib'),
                             **vis_kwargs(arm)))
 
     if 'science' in include:
@@ -160,12 +164,14 @@ def plan_night(plan: Dict,
                 for exp in entry.get('exposures', []):
                     n = exp.get('n', 1)
                     n = n if isinstance(n, int) else 1
+                    kw = exp.get('keywords', {})
                     planned.append(PlannedExposures(
                         arm=arm, dpr_type=exp['type'], n=n,
                         exptime=DEFAULT_SCIENCE_EXPTIME_S, mode=mode,
                         catg=dpr.get('catg'), tech=exp.get('tech') or dpr.get('tech'),
                         tpl_id=tpl_id,
                         group=f"{arm}:{entry.get('name')}:{mode}",
+                        calfib=kw.get('ins.calfib'),
                         **vis_kwargs(arm)))
 
     return planned
@@ -217,7 +223,7 @@ def run_night(plan_path: Path, output_dir: Path, builder: RawFrameBuilder,
             tpl_start=tpl_start, obs_start=clock,
             tpl_id=p.tpl_id, tpl_nexp=group_nexp[p.group],
             tpl_expno_start=expno,
-            catg=p.catg, tech=p.tech, ins_mask=p.ins_mask,
+            catg=p.catg, tech=p.tech, ins_mask=p.ins_mask, calfib=p.calfib,
             ifu_scale=p.ifu_scale, binx=p.binx, biny=p.biny,
             readout=p.readout, extra_keywords=p.extra_keywords)
         written.extend(paths)

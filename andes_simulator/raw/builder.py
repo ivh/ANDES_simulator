@@ -28,13 +28,17 @@ NORM_PERCENTILE = 99.9
 
 class RawFrameBuilder:
     def __init__(self, project_root: Path, cache: SimCache, output_dir: Path,
-                 seed: Optional[int] = None, jobs: int = 1):
+                 seed: Optional[int] = None, jobs: int = 1,
+                 headers_only: bool = False):
         self.project_root = Path(project_root)
         self.cache = cache
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.rng_master = np.random.default_rng(seed)
         self.jobs = jobs
+        # headers-only: stub 2x2 extensions, no pyechelle, no detector model;
+        # enough for classification/organization testing of the workflow
+        self.headers_only = headers_only
         self._counters: Dict[str, int] = {}
         self._detectors: Dict[str, DetectorModel] = {}
 
@@ -55,13 +59,15 @@ class RawFrameBuilder:
 
     def slot_entries(self, arm: str, dpr_type: str, mode: Optional[str],
                      bands: Optional[Sequence[str]] = None,
-                     ins_mask: Optional[str] = None) -> List[Dict]:
+                     ins_mask: Optional[str] = None,
+                     calfib: Optional[str] = None) -> List[Dict]:
         """Cache entries needed for a frame (for parallel pre-filling)."""
         arm_cfg = SPECTROGRAPHS[arm]
         sim_bands = [b for b in arm_cfg['bands'] if bands is None or b in bands]
         entries = []
         for band in sim_bands:
-            spec = parse_dpr(dpr_type, band=band, mode=mode, ins_mask=ins_mask)
+            spec = parse_dpr(dpr_type, band=band, mode=mode, ins_mask=ins_mask,
+                             calfib=calfib)
             if spec.detector_only:
                 continue
             for slot in spec.slots:
@@ -108,6 +114,7 @@ class RawFrameBuilder:
               catg: Optional[str] = None,
               tech: Optional[str] = None,
               ins_mask: Optional[str] = None,
+              calfib: Optional[str] = None,
               ifu_scale: Optional[int] = None,
               binx: int = 1, biny: int = 1,
               readout: Optional[str] = None,
@@ -123,23 +130,27 @@ class RawFrameBuilder:
 
         # reference spec (grammar/keywords are band-independent)
         ref_spec = parse_dpr(dpr_type, band=sim_bands[0], mode=mode,
-                             ins_mask=ins_mask, catg=catg, tech=tech)
-
-        entries = self.slot_entries(arm, dpr_type, mode, sim_bands, ins_mask)
-        if entries:
-            ensure_many(self.cache, entries, jobs=self.jobs)
+                             ins_mask=ins_mask, calfib=calfib,
+                             catg=catg, tech=tech)
 
         expectations: Dict[str, Optional[np.ndarray]] = {}
         detectors: Dict[str, DetectorModel] = {}
-        for band in arm_bands:
-            detectors[band] = self._detector(band, readout)
-            if band in sim_bands:
-                spec = parse_dpr(dpr_type, band=band, mode=mode,
-                                 ins_mask=ins_mask, catg=catg, tech=tech)
-                expectations[band] = self._expectation_for_band(
-                    band, spec, detectors[band], exptime)
-            else:
-                expectations[band] = None
+        if not self.headers_only:
+            entries = self.slot_entries(arm, dpr_type, mode, sim_bands,
+                                        ins_mask, calfib)
+            if entries:
+                ensure_many(self.cache, entries, jobs=self.jobs)
+
+            for band in arm_bands:
+                detectors[band] = self._detector(band, readout)
+                if band in sim_bands:
+                    spec = parse_dpr(dpr_type, band=band, mode=mode,
+                                     ins_mask=ins_mask, calfib=calfib,
+                                     catg=catg, tech=tech)
+                    expectations[band] = self._expectation_for_band(
+                        band, spec, detectors[band], exptime)
+                else:
+                    expectations[band] = None
 
         tpl_start = tpl_start or datetime.now(timezone.utc)
         tpl_start_str = tpl_start.strftime('%Y-%m-%dT%H:%M:%S')
@@ -156,7 +167,10 @@ class RawFrameBuilder:
             'tpl.nexp': tpl_nexp if tpl_nexp is not None else nexp,
         }
         if arm_cfg['detector_type'] == 'CCD':
-            keywords['det.readout'] = readout or detectors[arm_bands[0]].readout
+            keywords['det.readout'] = (readout or
+                                       self._detector(arm_bands[0], readout).readout)
+        if not ref_spec.detector_only:
+            keywords['ins.calfib'] = ref_spec.calfib or 'OFF'
         if ins_mask:
             keywords['ins.mask'] = ins_mask
         if ifu_scale is not None and ref_spec.mode == 'IFU-AO':
@@ -169,6 +183,10 @@ class RawFrameBuilder:
         for i in range(nexp):
             images, ext_meta = {}, {}
             for band in arm_bands:
+                if self.headers_only:
+                    images[band] = np.zeros((2, 2), dtype=np.uint16)
+                    ext_meta[band] = {'simulated': False}
+                    continue
                 det = detectors[band]
                 rng = np.random.default_rng(self.rng_master.integers(2**63))
                 images[band] = det.apply(expectations[band], exptime, rng,
