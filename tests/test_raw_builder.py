@@ -24,7 +24,11 @@ def test_bias_mef_structure(builder):
     t0 = datetime(2026, 7, 6, 10, 0, tzinfo=timezone.utc)
     paths = builder.build(arm="YJH", dpr_type="BIAS", exptime=0.0, nexp=2,
                           tpl_start=t0, tpl_id="ANDES_gen_cal_bias")
-    assert [p.name for p in paths] == ["ANDES_YJH_0001.fits", "ANDES_YJH_0002.fits"]
+    # timestamped names: DATE-OBS with colons replaced, 60s readout overhead
+    assert [p.name for p in paths] == [
+        "ANDES_YJH_2026-07-06T10_00_00.000.fits",
+        "ANDES_YJH_2026-07-06T10_01_00.000.fits",
+    ]
 
     with fits.open(paths[0]) as hdul:
         assert hdul[0].data is None

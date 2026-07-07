@@ -7,7 +7,6 @@ MEF per spectrograph arm (DRL v1.2 Ch. 4.1 layout).
 """
 
 import logging
-import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -39,7 +38,6 @@ class RawFrameBuilder:
         # headers-only: stub 2x2 extensions, no pyechelle, no detector model;
         # enough for classification/organization testing of the workflow
         self.headers_only = headers_only
-        self._counters: Dict[str, int] = {}
         self._detectors: Dict[str, DetectorModel] = {}
 
     def _detector(self, band: str, readout: Optional[str]) -> DetectorModel:
@@ -48,14 +46,16 @@ class RawFrameBuilder:
             self._detectors[key] = DetectorModel(band, readout=readout)
         return self._detectors[key]
 
-    def _next_filename(self, arm: str) -> Path:
-        if arm not in self._counters:
-            pattern = re.compile(rf"ANDES_{arm}_(\d+)\.fits$")
-            existing = [int(m.group(1)) for f in self.output_dir.glob(f"ANDES_{arm}_*.fits")
-                        if (m := pattern.match(f.name))]
-            self._counters[arm] = max(existing, default=0)
-        self._counters[arm] += 1
-        return self.output_dir / f"ANDES_{arm}_{self._counters[arm]:04d}.fits"
+    def _filename_for(self, arm: str, obs_time: datetime) -> Path:
+        """ANDES_<ARM>_<DATE-OBS>.fits with ms precision, colons replaced.
+
+        Timestamped names are unique per exposure by construction (the arm
+        disambiguates simultaneous exposures, per DRL 4.1), regeneration
+        with the same tpl-start overwrites the same files, and file age is
+        visible in the listing.
+        """
+        stamp = obs_time.strftime('%Y-%m-%dT%H_%M_%S') + f".{obs_time.microsecond // 1000:03d}"
+        return self.output_dir / f"ANDES_{arm}_{stamp}.fits"
 
     def slot_entries(self, arm: str, dpr_type: str, mode: Optional[str],
                      bands: Optional[Sequence[str]] = None,
@@ -200,7 +200,7 @@ class RawFrameBuilder:
             keywords['tpl.expno'] = tpl_expno_start + i
             hdul = build_raw_hdul(arm, images, ext_meta, obs_time, exptime,
                                   keywords)
-            path = self._next_filename(arm)
+            path = self._filename_for(arm, obs_time)
             hdul.writeto(path, overwrite=True)
             paths.append(path)
             logger.info("wrote %s (%s, %s)", path.name, ref_spec.dpr_type,

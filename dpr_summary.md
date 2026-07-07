@@ -36,7 +36,11 @@ No script per data type: per-type variety lives in the plan YAML, not code.
 One MEF per spectrograph (UBV/RIZ/YJH): header-only primary HDU with the
 ESO classification keywords, one uint16 image extension per detector band
 (EXTNAME = band, gain/RON keys, saturation-clipped). `SEQ.ARM` is
-spectrograph-level; filenames carry the spectrograph name (DPID safety).
+spectrograph-level. Filenames are `ANDES_<ARM>_<DATE-OBS>.fits` with
+colons replaced (`ANDES_RIZ_2026-07-07T12_00_00.000.fits`): the arm
+disambiguates simultaneous exposures (DPID safety, DRL 4.1), the
+timestamp makes names unique per exposure and file age visible;
+regenerating with the same `--tpl-start` overwrites the same files.
 A `--bands` filter simulates only some detectors; the other extensions get
 detector-noise-only pixels flagged `HIERARCH ESO SIM SIMULATED = F`.
 `--headers-only` replaces all extensions by 2x2 stubs and skips pyechelle
@@ -105,8 +109,10 @@ their side, the night driver consumes the YAML directly on ours.
   EDPS into 40/40 complete jobs across the whole cascade (bias through
   science); the rv_std chain organizes complete when targeted (it is a
   leaf, absent from the default science-driven dump).
-- EDPS gotcha: its file bookkeeping keys on path — always generate into a
-  fresh directory and use `edps -w andes.andes_wkf -r` after workflow edits.
+- EDPS gotcha: its file bookkeeping keys on path — regenerating different
+  content under identical paths serves stale records. The timestamped
+  filenames avoid this unless `--tpl-start` is pinned; use
+  `edps -w andes.andes_wkf -r` after workflow edits.
 
 ## Known gaps (tracked in calibration_plan.yaml reconciliation)
 
