@@ -24,6 +24,15 @@ def test_signature_stable_and_boost_sensitive(tmp_path):
     assert other_boost.path_for(sig3) != cache.path_for(sig1)
 
 
+def test_signature_includes_resolved_scaling(tmp_path):
+    # retuning per-source flux scaling must invalidate cached entries
+    cache = make_cache(tmp_path)
+    sig = cache.signature("R", {"type": "hcl"}, (1, 2))
+    assert sig["scaling"] > 0
+    sig_fp = cache.signature("R", {"type": "fabry_perot"}, (1, 2))
+    assert sig_fp["scaling"] != sig["scaling"]
+
+
 def test_signature_includes_csv_file_stat(tmp_path):
     cache = make_cache(tmp_path)
     sig = cache.signature("R", {"type": "csv", "filepath": "SED/phoenix.csv"}, (1,))

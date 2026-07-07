@@ -80,10 +80,12 @@ def resolve_source_scaling(source_type: str, band: str, flux: float,
 
     base = user_scaling if user_scaling is not None else DEFAULT_SCALING.get(band, 1e5)
     effective = flux * base
-    if source_type in ('lfc', 'hcl'):
+    if source_type == 'lfc':
         effective /= 20
     elif source_type == 'fabry_perot':
         effective /= 100
+    # hcl gets no divisor: the scaling sets the *brightest* ThAr line and the
+    # NIST relative intensities span ~4 decades, so most lines are far dimmer
     return effective, None
 
 

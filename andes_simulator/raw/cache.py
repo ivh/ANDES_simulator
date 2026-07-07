@@ -53,12 +53,19 @@ class SimCache:
 
     def signature(self, band: str, source_kwargs: Dict, fibers: Sequence[int],
                   hdf: Optional[str] = None) -> Dict:
+        from ..cli.utils import resolve_source_scaling
+
+        # the resolved flux scaling must be part of the key: retuning the
+        # per-source scaling would otherwise silently reuse stale entries
+        scaling, _ = resolve_source_scaling(
+            source_kwargs['type'], band, flux=self.boost, user_scaling=None)
         sig = {
             'band': band,
             'hdf': hdf or 'default',
             'source': dict(sorted(source_kwargs.items())),
             'fibers': list(fibers),
             'boost': self.boost,
+            'scaling': scaling,
             'ref_exposure': REF_EXPOSURE_S,
         }
         filepath = source_kwargs.get('filepath')

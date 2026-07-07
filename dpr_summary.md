@@ -49,6 +49,32 @@ EDPS classification/organization tests. No prescan/overscan regions yet
 (geometry undefined in the ADs); the detector layer is the single place to
 add them later.
 
+## Night driver
+
+`andes-sim night` is the batch layer over the same builder that serves
+`make-raw`: it expands the canonical calibration plan into a complete
+night, so the frame lists exist only in the YAML. Three phases:
+
+1. *Planning* (`plan_night`): walk `procedures` (and, with
+   `--include night,science`, the night calibrations and observations),
+   filter by `--arms`/`--sets`, skip `reference` entries, choose one VIS
+   binning/readout config (`--vis-config`) and one IFU scale. Every
+   exposure entry becomes a planned run with DPR type, count, exptime
+   (LED `varied` expands to the 1-60 s linearity series) and the
+   per-exposure keywords (`ins.calfib`, `ins.mask`) from the YAML.
+   `--dry-run` prints this table.
+2. *Time and grouping* (`run_night`): a synthetic clock (start `--date`,
+   default 10:00 UT) advances by exptime + 60 s readout per frame and
+   feeds DATE-OBS/MJD-OBS and the filenames. Runs sharing (arm, template,
+   mode) share one TPL.START group with continuous TPL.EXPNO: EDPS groups
+   by tpl.start, and AD2 spreads e.g. wavelength calibration over six CPs
+   of one template whose HCL and FP frames must land in one group
+   (reconciliation item 9).
+3. *Building*: each run is one `RawFrameBuilder.build()` call — the
+   make-raw code path with the cache, detector layer and MEF writing;
+   `--bands`, `--jobs`, `--headers-only`, `--seed`, `--boost` pass
+   through.
+
 ## Simulation cache and the shot-noise fix
 
 Pyechelle output is a Monte Carlo realization, so caching raw simulations
@@ -58,11 +84,20 @@ measurement. The cache (`E2E/simcache/`) therefore stores *boosted
 expectation* images: each unique (band, model, source, fibers) slot is
 simulated once at boost x nominal flux (default 10) and divided by boost;
 every exposure then draws fresh Poisson noise from the scaled expectation.
-Residual correlated noise is 1/boost of the shot variance — fine for
-recipe testing; raise `--boost` or disable the cache for noise studies.
 Verified: two exposures sharing a cached slot show variance ratio 0.993 vs
 ideal independence; a 10-frame bias stack averages down exactly sqrt(10);
 photon transfer on an LED pair recovers the true gain (1.997 vs 2.0).
+
+The frozen MC noise left in the expectation is set by the *simulated*
+photon count relative to the shipped peak level (the peak-target
+normalization rescales the image, not its statistics). Measured on the
+R-band daily set: FP line cores carry a ~2.5 percent static pattern
+(identical in all frames, so it cancels in frame-to-frame drift tests but
+floors absolute-wavecal accuracy at roughly the m/s level); HCL is ~0.8
+percent after its scaling fix (2026-07-07: hcl lost the /20 divisor that
+made sense for the equal-intensity LFC but starved the ThAr lines, whose
+NIST intensities span ~4 decades below the brightest). The resolved flux
+scaling is part of the cache key, so retuning invalidates entries.
 
 Fibre efficiencies and detector cosmetics (PRNU, hot/dead pixels, bad
 columns) are seeded per band: they are static instrument properties, and
