@@ -57,17 +57,23 @@ def fit_peak(profile, fixed_base=None):
 
 def bin_sum(profile, center, width):
     """Sum profile flux in [center-width/2, center+width/2], with
-    fractional weighting on the edge pixels."""
+    fractional weighting on the edge pixels.
+
+    profile[i] is the value AT row i, and the bin centres are anchored to a
+    centroid fitted against y=arange(size), so pixel i covers [i-0.5, i+0.5).
+    Integrating it over [i, i+1) instead offsets the bin grid by half a pixel
+    from the profile, which manufactures a large spurious left/right asymmetry
+    in the wing fractions (it made the +/- ratio at 1 pitch 41 instead of 0.7)."""
     lo = center - width / 2.0
     hi = center + width / 2.0
-    i0 = int(np.floor(lo))
-    i1 = int(np.floor(hi))
+    i0 = int(np.floor(lo + 0.5)) - 1
+    i1 = int(np.floor(hi + 0.5)) + 1
     total = 0.0
     for i in range(i0, i1 + 1):
         if i < 0 or i >= profile.size:
             continue
-        left = max(lo, i)
-        right = min(hi, i + 1)
+        left = max(lo, i - 0.5)
+        right = min(hi, i + 0.5)
         w = max(0.0, right - left)
         total += w * profile[i]
     return total
