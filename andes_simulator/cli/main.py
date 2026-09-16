@@ -123,6 +123,10 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
                          help='Base scaling factor (default: per-band)')(f)
         f = click.option('--flux', default=1.0, type=float,
                          help='Flux multiplier (multiplied with scaling)')(f)
+        f = click.option('--flux-unit', 'flux_unit', default=None,
+                         type=click.Choice(['ph/s', 'ph/s/AA', 'ph/s/nm']),
+                         help='Units of a CSV source flux column '
+                              '(default: ph/s, i.e. photons per sample)')(f)
         return f
 
     # --- CLI group ---
@@ -161,7 +165,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
     @click.option('--fp-gap', type=float, default=None,
                   help='FP gap thickness in mm (default: auto-computed for ~100 lines/order)')
     @click.pass_context
-    def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, exposure,
+    def simulate(ctx, band, source_spec, fiber_spec, flux, scaling, flux_unit, exposure,
                  output_dir, output_name, hdf, wl_min, wl_max, fib_eff, velocity_shift,
                  x_shift, finesse, fp_gap, dry_run):
         """Run detector simulation with specified source.
@@ -295,6 +299,7 @@ def create_cli(instrument_name: str, bands: List[str], subslit_choices: List[str
             fiber=custom_fibers if custom_fibers else fiber,
             flux=flux,
             scaling=scaling,
+            flux_unit=flux_unit,
             velocity_shift=vshift_for_config,
             x_shift=x_shift_value,
             hdf=hdf_path,

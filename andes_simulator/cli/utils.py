@@ -103,7 +103,7 @@ def build_config_from_options(
     velocity_shift: Optional[float] = None,
     x_shift: Optional[float] = None,
     spectrum_path: Optional[Path] = None,
-    flux_unit: str = "ph/s/AA",
+    flux_unit: Optional[str] = None,
     hdf: Optional[str] = None,
     wl_min: Optional[float] = None,
     wl_max: Optional[float] = None,
@@ -161,7 +161,11 @@ def build_config_from_options(
         fibers = "all"
 
     # Build source config
-    source_kwargs = {'type': source_type, 'flux': flux, 'flux_unit': flux_unit}
+    source_kwargs = {'type': source_type, 'flux': flux}
+    # Only override the SimulationConfig default when explicitly asked; a CLI
+    # default here would silently shadow it (it used to, with a different value).
+    if flux_unit is not None:
+        source_kwargs['flux_unit'] = flux_unit
     scaling_factor, use_file_scaling = resolve_source_scaling(
         source_type, band, flux, scaling)
     source_kwargs['scaling_factor'] = scaling_factor

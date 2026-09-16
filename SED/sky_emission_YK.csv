@@ -1,4 +1,5 @@
-# scaling: 5
+# retuned for the flux_unit ph/s default: was 5, x0.11 (median YJH sampling)
+# scaling: 0.55
 9.500000e+02,3.496019e+00
 9.500079e+02,2.318465e+00
 9.500158e+02,7.234323e+01

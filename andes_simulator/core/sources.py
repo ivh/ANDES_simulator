@@ -237,7 +237,7 @@ class SourceFactory:
         return CSVSource(
             str(data_path),
             wavelength_units="um",
-            flux_units=config.flux_unit or "ph/s/AA",
+            flux_units=config.flux_unit,
         )
 
     @staticmethod
