@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["numpy", "astropy"]
+# dependencies = ["numpy", "astropy", "scipy"]
 # ///
 """Proxima b reflected-light observing sequence on the ANDES SCAO-IFU.
 
@@ -28,12 +28,13 @@ weights (10.0/0.5/0.2/0.08/0.03) and no physical basis.
 
 So the focal-plane PSF -- the thing that decides how much starlight couples
 into each spaxel, i.e. the entire contrast problem -- has to be supplied here.
-`CouplingModel` below is an ANALYTIC PLACEHOLDER: a diffraction core carrying
-the Strehl plus a Moffat halo carrying the rest, integrated over each hexagon.
-It is NOT an end-to-end AO simulation.  Absolute contrasts from it are not
-trustworthy; only relative/structural conclusions are.  Replacing it with real
-ANDES SCAO+coronagraph coupling functions (the equivalent of Blind et al. 2024
-for RISTRETTO) is open question Q3/Q4 of the plan and gates Phase 1.
+The focal-plane coupling therefore comes from `andes_coupling.py`, which is
+anchored to the three numbers the PDR package does give: Strehl 0.6/0.3 in H/Y,
+raw contrast ~1.5e-3 at 25-45 mas without a coronagraph, and the R-AND-102.0a
+requirement of 3.0e-3 at 20 mas with one.  It is still an analytic model -- the
+AO subsystem documents holding the actual contrast curves (E-AND-AO-TNO-04-00-001,
+E-AND-AO-ANR-14-00-003) are referenced but not delivered in the PDR package -- but
+it is no longer arbitrary.  See exopl_refl/phase1/RESULTS.md.
 =============================================================================
 """
 from __future__ import annotations
@@ -49,6 +50,9 @@ from pathlib import Path
 
 import numpy as np
 from astropy.io import fits
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from andes_coupling import Coupling, T_SCAO, STREHL
 
 SRC = Path(__file__).resolve().parent.parent
 SED = SRC / "SED"
@@ -98,51 +102,6 @@ def build_ifu(pitch_mas: float):
     return spaxels
 
 
-class CouplingModel:
-    """PLACEHOLDER focal-plane PSF -> per-spaxel coupling. See module docstring.
-
-    rho(r) = S * core(r) + (1-S) * halo(r), normalised over the full focal plane,
-    then integrated over each hexagon.  `core` is a Gaussian of FWHM 1.03 lam/D
-    (diffraction limit), `halo` a Moffat of FWHM = seeing.  An optional
-    coronagraph multiplies the on-axis transmission.
-    """
-
-    def __init__(self, pitch_mas, lam_d_mas, strehl=0.60, seeing_mas=700.0,
-                 moffat_beta=2.5, n_sub=41):
-        self.pitch, self.lam_d, self.S = pitch_mas, lam_d_mas, strehl
-        self.seeing, self.beta, self.n_sub = seeing_mas, moffat_beta, n_sub
-        self.s_circ = pitch_mas / np.sqrt(3)
-
-    def _psf(self, r):
-        core_fwhm = 1.03 * self.lam_d
-        sig = core_fwhm / 2.3548
-        core = np.exp(-0.5 * (r / sig) ** 2) / (2 * np.pi * sig ** 2)
-        a = self.seeing / (2 * np.sqrt(2 ** (1 / self.beta) - 1))
-        norm = (self.beta - 1) / (np.pi * a ** 2)
-        halo = norm * (1 + (r / a) ** 2) ** (-self.beta)
-        return self.S * core + (1 - self.S) * halo
-
-    def coupling(self, spaxels, src_x, src_y):
-        """Fraction of a point source at (src_x, src_y) landing in each spaxel."""
-        n, s = self.n_sub, self.s_circ
-        # sample a square patch covering one hexagon, keep points inside it
-        u = np.linspace(-s, s, n)
-        gx, gy = np.meshgrid(u, u)
-        inside = self._in_hex(gx, gy, s)
-        cell_area = (2 * s / (n - 1)) ** 2
-        out = {}
-        for fib, cx, cy, ring in spaxels:
-            rx, ry = gx[inside] + cx - src_x, gy[inside] + cy - src_y
-            out[fib] = float(np.sum(self._psf(np.hypot(rx, ry)) * cell_area))
-        return out
-
-    @staticmethod
-    def _in_hex(x, y, s):
-        """Point-in-hexagon (pointy-top, circumradius s)."""
-        x, y = np.abs(x), np.abs(y)
-        return (y <= s * np.sqrt(3) / 2) & (x <= s) & (s * np.sqrt(3) * x + y <= s * np.sqrt(3))
-
-
 def run_sim(band, args, label, out_dir, fib_eff):
     """One andes-sim subprocess with an isolated numba cache."""
     cache = tempfile.mkdtemp(prefix="numba_")
@@ -180,8 +139,8 @@ def main():
     p.add_argument("--exptime-long", type=float, default=3600.0)
     p.add_argument("--exptime-short", type=float, default=120.0,
                    help="TOTAL short-exposure time; the scan dwells t/61 per spaxel")
-    p.add_argument("--strehl", type=float, default=0.60)
-    p.add_argument("--seeing", type=float, default=700.0, help="halo FWHM [mas]")
+    p.add_argument("--coronagraph", action="store_true",
+                   help="use the coronagraph (R-AND-102.0a contrast, 0.54 transmission)")
     p.add_argument("--nd", type=float, default=1e-3,
                    help="neutral-density transmission on the central spaxel")
     p.add_argument("--planet-pa", type=float, default=35.0, help="planet position angle [deg]")
@@ -201,7 +160,7 @@ def main():
 
     lam_d = LAMBDA_D_MAS[a.band]
     spaxels = build_ifu(a.ifu_scale)
-    cm = CouplingModel(a.ifu_scale, lam_d, a.strehl, a.seeing)
+    cm = Coupling(a.band, coronagraph=a.coronagraph)
 
     # ---- geometry -----------------------------------------------------------
     pa = np.radians(a.planet_pa)
@@ -213,8 +172,8 @@ def main():
         if dd < pd:
             pd, pfib, pring = dd, fib, ring
 
-    rho_star = cm.coupling(spaxels, 0.0, 0.0)          # star on centre -> halo everywhere
-    rho_planet = cm.coupling(spaxels, px, py)          # planet -> mostly its own spaxel
+    rho_star = cm.rho(spaxels, 0.0, 0.0, a.ifu_scale)   # star on centre -> halo everywhere
+    rho_planet = cm.rho(spaxels, px, py, a.ifu_scale)   # planet -> mostly its own spaxel
 
     contrast = a.albedo * (1.07 * 6.371e6 / (0.04848 * 1.496e11)) ** 2 / np.pi
 
@@ -224,6 +183,9 @@ def main():
           f"= {SEP_PROXB_MAS/lam_d:.2f} lam/D -> fibre {pfib} (ring {pring}), "
           f"{pd:.1f} mas off centre")
     print(f"planet/star contrast = {contrast:.3e}")
+    print(f"Strehl {cm.S:.2f}, halo anchored to C={cm.contrast:.1e} @ "
+          f"{cm.r_anchor:.0f} mas -> control radius {cm.r_c:.0f} mas; "
+          f"T_SCAO {T_SCAO['coro' if a.coronagraph else 'nocoro']:.2f}")
     print(f"coupling: central spaxel {rho_star[RING_FIBERS[0][0]]:.4f}, "
           f"planet's spaxel (halo) {rho_star[pfib]:.3e}, "
           f"planet into it {rho_planet[pfib]:.4f}")
@@ -241,7 +203,7 @@ def main():
             continue
         for fib, x, y, ring in spaxels:
             # tip-tilt scan: star centred on THIS spaxel for `dwell` seconds
-            rho = cm.coupling([(fib, x, y, ring)], x, y)[fib]
+            rho = cm.rho([(fib, x, y, ring)], x, y, a.ifu_scale)[fib]
             jobs.append((a.band, [
                 "--source", str(spectrum), "--fiber", str(fib),
                 "--exposure", f"{dwell:.4f}",
