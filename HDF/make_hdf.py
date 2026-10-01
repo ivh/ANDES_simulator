@@ -29,9 +29,32 @@ import sys
 import time
 
 import numpy as np
+import zospy
 from pyechelle.CCD import CCD
 from pyechelle.hdfbuilder import HDFBuilder
-from pyechelle.spectrograph import InteractiveZEMAX
+from pyechelle.spectrograph import Field, InteractiveZEMAX
+
+
+def _push_to_zos_with_centre(self, oss):
+    """Replacement for pyechelle's Field.push_to_zos (<= 0.4.0).
+
+    The original adds only the four box corners, because DeleteAllFields() cannot
+    remove field 1 -- which then keeps whatever coordinates it had. get_psf() computes
+    the Huygens PSF at field=1, so every fiber got the PSF of that leftover point
+    (all MOSAIC HDFs from March 2026 have identical PSFs in all fibers). Moving field 1
+    onto the fiber centre fixes this; it lies inside the box, so field normalization
+    and thus the transformations are unchanged.
+    """
+    fields = oss.SystemData.Fields
+    fields.DeleteAllFields()
+    fields.Normalization = zospy.constants.SystemData.FieldNormalizationType.Rectangular
+    f1 = fields.GetField(1)
+    f1.X, f1.Y = self.center.x, self.center.y
+    for p in self.points[1:]:
+        fields.AddField(p.x, p.y, 1.0)
+
+
+Field.push_to_zos = _push_to_zos_with_centre
 
 
 def connect(name, zmx_path):
@@ -217,6 +240,15 @@ def test_api(zmx, args):
     print(f"PSF at {mid_wl:.4f} um: shape {np.array(psf.data).shape}, "
           f"sampling {psf.sampling} um")
 
+    last = zmx.get_fibers()[-1]
+    if last != 1:
+        a = np.asarray(psf.data, dtype=float)
+        b = np.asarray(zmx.get_psf(mid_wl, mid_order, last, 1).data, dtype=float)
+        d = np.abs(a / a.sum() - b / b.sum()).sum() / 2
+        print(f"PSF fiber 1 vs fiber {last}: |diff|/2 = {d:.4f}")
+        if d == 0:
+            print("WARNING: PSFs identical across the slit -- field patch not effective")
+
 
 def fix_dispersion_axis(output_path):
     """Ensure dispersion is along tx (horizontal).
@@ -309,6 +341,26 @@ def build_hdf(zmx, args):
     print(f"Done in {elapsed / 3600:.1f} hours. Wrote {args.output}")
     fix_dispersion_axis(args.output)
     unwrap_rotation(args.output)
+    check_psf_field_dependence(args.output)
+
+
+def check_psf_field_dependence(output_path):
+    import h5py
+
+    with h5py.File(output_path, "r") as f:
+        ccd = f["CCD_1"]
+        fibers = sorted(int(k[6:]) for k in ccd if k.startswith("fiber_"))
+        if len(fibers) < 2:
+            return
+        key = next(k for k in ccd[f"fiber_{fibers[0]}"] if k.startswith("psf_order"))
+        a_grp, b_grp = ccd[f"fiber_{fibers[0]}/{key}"], ccd[f"fiber_{fibers[-1]}/{key}"]
+        a = sorted((d.attrs["wavelength"], d[()]) for d in a_grp.values())
+        b = sorted((d.attrs["wavelength"], d[()]) for d in b_grp.values())
+        pa, pb = a[len(a) // 2][1], b[len(b) // 2][1]
+        d = np.abs(pa / pa.sum() - pb / pb.sum()).sum() / 2
+    print(f"PSF field dependence ({key}, fiber {fibers[0]} vs {fibers[-1]}): |diff|/2 = {d:.4f}")
+    if d == 0:
+        print("WARNING: PSFs identical across the slit")
 
 
 def main():

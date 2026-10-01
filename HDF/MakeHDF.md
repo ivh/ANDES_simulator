@@ -185,6 +185,19 @@ Notes on the simulator:
    slit axis from native field coordinates, and swapping tx↔ty + sx↔sy in the
    HDF if dispersion ends up along ty.
 
+4. **PSFs not field-dependent** (pyechelle <= 0.4.0): `Field.push_to_zos()` only
+   adds the 4 box corners since `DeleteAllFields()` keeps field 1, and `get_psf()`
+   traces field 1 -- so every fiber got the PSF of the leftover field. All MOSAIC
+   HDFs above (March 2026) have identical PSFs in all fibers; transformations are
+   unaffected. Fixed by monkey-patching `push_to_zos` to move field 1 onto the fiber
+   centre; `--test-api` and a post-build check report the PSF difference between
+   first and last fiber. Not yet verified on the Zemax machine.
+
+`reslit_hdf.py` builds an HDF for a different slit layout or fiber size from an
+existing one by interpolating along the slit (no Zemax needed). ~20 traced field
+points along the slit reproduce the transformations to float32 precision, so a
+regenerated HDF with field-dependent PSFs only needs a coarse fiber grid.
+
 ## TODO
 
 - [x] VIS LR-B HDF (config 1) — done, 1.9 GB
