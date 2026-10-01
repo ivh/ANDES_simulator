@@ -159,15 +159,17 @@ def configure(zmx, args):
 
     orders = list(range(args.orders[0], args.orders[1]))
 
-    if args.layout == "linear":
+    if args.positions:
+        yfield = np.atleast_1d(np.loadtxt(args.positions))
+    elif args.layout == "linear":
         yfield = fiber_positions_linear(args.nfibers, args.fiber_size)
-        nfibers = args.nfibers
     elif args.layout == "bundles":
         yfield = fiber_positions_bundles(
             args.nbundles, args.fibers_per_bundle,
             args.fiber_size, args.bundle_gap,
         )
-        nfibers = len(yfield)
+    nfibers = len(yfield)
+    args.slit_positions = yfield
 
     # Auto-detect slit axis from native field coordinates: if the model's
     # fields span more in X than Y, the slit runs along X.
@@ -341,7 +343,19 @@ def build_hdf(zmx, args):
     print(f"Done in {elapsed / 3600:.1f} hours. Wrote {args.output}")
     fix_dispersion_axis(args.output)
     unwrap_rotation(args.output)
+    write_slit_positions(args.output, args.slit_positions, args.fiber_size)
     check_psf_field_dependence(args.output)
+
+
+def write_slit_positions(output_path, positions, fiber_size):
+    """Record each fiber's slit position and field size, read by reslit_hdf.py."""
+    import h5py
+
+    with h5py.File(output_path, "r+") as f:
+        for i, pos in enumerate(positions):
+            g = f[f"CCD_1/fiber_{i + 1}"]
+            g.attrs["slit_position_um"] = float(pos)
+            g.attrs["fiber_size_um"] = float(fiber_size)
 
 
 def check_psf_field_dependence(output_path):
@@ -391,6 +405,9 @@ def main():
     g.add_argument("--fibers-per-bundle", type=int, default=7, help="Fibers per bundle (default: 7)")
     g.add_argument("--bundle-gap", type=float, default=200,
                    help="Extra gap between bundles in microns (default: 200, TODO: get real value)")
+    g.add_argument("--positions", help="Text file with one slit position (microns) per fiber; "
+                   "overrides --layout. Field size is still --fiber-size, so a coarse field grid "
+                   "for reslit_hdf.py can keep realistic fiber boxes.")
 
     g = p.add_argument_group("detector")
     g.add_argument("--nx", type=int, default=4096, help="Detector X pixels (default: 4096)")

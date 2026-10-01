@@ -160,7 +160,7 @@ def main():
         src_positions = bundle_positions(1, args.src_nfibers, args.src_pitch, 0.0)
 
     if args.positions:
-        data = np.atleast_2d(np.loadtxt(args.positions))
+        data = np.loadtxt(args.positions, ndmin=2)
         new_pos = data[:, 0]
         new_size = data[:, 1] if data.shape[1] > 1 else np.full(len(new_pos), args.fiber_size or np.nan)
     elif args.nbundles:
